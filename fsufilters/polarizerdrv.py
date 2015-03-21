@@ -2,7 +2,7 @@ import logging
 import time
 
 from adshli.hli import ads_var_single
-from chimera.instruments.fsu.fsuconn import FSUConn
+from chimera.instruments.ebox.fsufilters.fsuconn import FSUConn
 
 log = logging.getLogger(name=__name__)
 

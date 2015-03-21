@@ -3,7 +3,7 @@ from chimera.core.lock import lock
 from chimera.core.chimeraobject import ChimeraObject
 # from chimera.instruments.filterwheel import FilterWheelBase
 
-from chimera.instruments.fsu.filterwheelsdrv import FSUFilterWheel
+import chimera.instruments.ebox.fsufilters.filterwheelsdrv as FWdrv
 
 
 class FsuFilters(ChimeraObject):
@@ -34,7 +34,7 @@ class FsuFilters(ChimeraObject):
         """Constructor."""
         ChimeraObject.__init__(self)
         # Get me the filter wheel.
-        self.fwhl = FSUFilterWheel()
+        self.fwhl = FWdrv.FSUFilterWheel()
 
     @lock
     def setFilter(self, filter):
