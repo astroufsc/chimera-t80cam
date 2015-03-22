@@ -173,5 +173,3 @@ class FSUFilterWheel(FSUConn):
         print('Function blk M3 servo axis (wplate)error number: {0}'.format(
             self._vwrite13.read()))
         # TODO: return values and decisions for error conditions found.
-
-
