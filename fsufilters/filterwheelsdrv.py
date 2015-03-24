@@ -45,7 +45,7 @@ class FSUFilterWheel(FSUConn):
         self._vread0.write(filterpos)
         # print 'WD_READ[0] = ', self._vread0.read()
         while self.get_req_pos() != filterpos:
-            # print 'Waiting for variable to set...'
+            print 'Waiting for variable to set...'
             time.sleep(0.1)
         print 'wPOSITIONING_REQUESTED_T80_CAM_BOX = ', self._wPOS_REQ.read()
         print 'WD_READ[0] = ', bin(self._vread0.read())
@@ -57,6 +57,7 @@ class FSUFilterWheel(FSUConn):
         time.sleep(0.5)
         # print not ((self._vwrite1.read() & (1 << 2) != 0) and
         #            (self._vwrite1.read() & (1 << 3) != 0))
+        timeout = 0
         while not ((self._vwrite1.read() & (1 << 2) != 0) and
                    (self._vwrite1.read() & (1 << 3) != 0)):
             # Not in position yet
@@ -64,6 +65,12 @@ class FSUFilterWheel(FSUConn):
             print 'Moving flag: ', bin(self._vwrite1.read())
             print ((self._vwrite1.read() & (1 << 2) != 0),
                    (self._vwrite1.read() & (1 << 3) != 0))
+            timeout += 1
+            if timeout >= 50:
+                # 25000ms is the defined timeout on the PLC programs...
+                # Too long to reach position; check errors
+                self.check_hw()
+                break
             continue
 
     def move_stop(self):
@@ -89,6 +96,9 @@ class FSUFilterWheel(FSUConn):
         return blonks
 
     def get_req_pos(self):
+        """
+        Get rquested position.
+        """
         return self._wPOS_REQ.read()
 
     def check_hw(self):
@@ -172,4 +182,3 @@ class FSUFilterWheel(FSUConn):
             self._vwrite12.read()))
         print('Function blk M3 servo axis (wplate)error number: {0}'.format(
             self._vwrite13.read()))
-        # TODO: return values and decisions for error conditions found.
