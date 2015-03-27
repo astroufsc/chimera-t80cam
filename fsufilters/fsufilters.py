@@ -1,6 +1,7 @@
 from chimera.core.event import event
 from chimera.core.lock import lock
 from chimera.core.chimeraobject import ChimeraObject
+# from chimera.instruments.filterwheel import FilterWheelBase
 
 from chimera.instruments.ebox.fsufilters.filterwheelsdrv import FSUFilterWheel
 
