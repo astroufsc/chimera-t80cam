@@ -12,6 +12,7 @@ from chimera.instruments.ebox.fsufilters.filterwheelsdrv import FSUFilterWheel
 class FsuFilters(FilterWheelBase):
 
     """
+    High level class for the Solunia ebox fit with both filter wheels.
     """
 
     __config__ = dict(
