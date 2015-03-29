@@ -18,8 +18,6 @@ class FSUFilterWheel(FSUConn):
     def __init__(self):
         # Connect to the slave CPU
         FSUConn.__init__(self)
-
-    def __start__(self):
         """
         Initialize object from Chimera.
         """
