@@ -1,40 +1,32 @@
+import threading
+import time
+
 from chimera.core.event import event
 from chimera.core.lock import lock
-from chimera.core.chimeraobject import ChimeraObject
-# from chimera.instruments.filterwheel import FilterWheelBase
+# from chimera.core.chimeraobject import ChimeraObject
+from chimera.instruments.filterwheel import FilterWheelBase
 
 from chimera.instruments.ebox.fsufilters.filterwheelsdrv import FSUFilterWheel
 
 
-class FsuFilters(ChimeraObject):
+class FsuFilters(FilterWheelBase):
 
     """
     """
 
     __config__ = dict(
         filter_wheel_model="Solunia",
-        # filters="clear uJ F378 F395 F410 F430 g F515 r F660 i F861 z"
     )
-
-    # filters = dict(clear=0,
-    #                uJ=1,
-    #                F378=2,
-    #                F395=3,
-    #                F410=4,
-    #                F430=5,
-    #                g=6,
-    #                F515=7,
-    #                r=8,
-    #                F660=9,
-    #                i=10,
-    #                F861=11,
-    #                z=12)
 
     def __init__(self):
         """Constructor."""
-        ChimeraObject.__init__(self)
+        FilterWheelBase.__init__(self)
         # Get me the filter wheel.
         self.fwhl = FSUFilterWheel()
+        self._abort = threading.Event()
+
+    def __stop__(self):
+        self.abortMovement()
 
     @lock
     def setFilter(self, filter):
@@ -47,7 +39,13 @@ class FsuFilters(ChimeraObject):
             :param str filter: Name of the filter to use.
         """
         # Match the passed filter name to a wheel position.
-        self.fwhl.move_pos(self.filters[filter].value())
+        self._abort.clear()
+        for i in range(100):
+            time.sleep(1)
+            self.log.debug("%i" % i)
+            if self._abort.isSet():
+                break
+        # self.fwhl.move_pos(self.filters[filter].value())
 
     def getFilter(self):
         """
@@ -58,19 +56,19 @@ class FsuFilters(ChimeraObject):
         :return: Current filter.
         :rtype: int.
         """
-        return self.filters[self.fwhl.get_pos()]
+        return self._getFilterName(self.fwhl.get_pos())
 
-    def getFilters(self):
-        """
-        Return all filters on this wheel(s).
+    # def getFilters(self):
+    #     """
+    #     Return all filters on this wheel(s).
 
-        .. method:: getFilters()
-            Provides a tuple of all filters installed.
+    #     .. method:: getFilters()
+    #         Provides a tuple of all filters installed.
 
-            :return: Tuple of all filters available.
-            :rtype: tuple
-        """
-        return self.filters.keys()
+    #         :return: Tuple of all filters available.
+    #         :rtype: tuple
+    #     """
+    #     return self["filters"].keys()
 
     @event
     def filterChange(self, newFilter, oldFilter):
