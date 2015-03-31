@@ -26,7 +26,7 @@ class FSUFilterWheel(FSUConn):
         # CAM filter wheel position request vector
         self._wPOS_REQ = ads_var_single(
             self.conn, '.wPOSITIONING_REQUESTED_T80_CAM_BOX', 'i')
-        # # CAM filter wheels stop motion request vector (bit?)
+        # CAM filter wheels stop motion request vector (bit)
         # self._bSTOP_REQ = ads_var_single(
         #     self.conn, '.bSTOP_POSITIONING_REQUESTED_FILTERS_WHEEL', 'i')
         # CAM filter wheels commands vector
@@ -84,7 +84,8 @@ class FSUFilterWheel(FSUConn):
             Aborts any current rotation of all filter wheels.
         """
         # Check if wheels already stopped
-        if (self._vwrite1.read() & (1 << 2) != 0) and (self._vwrite1.read() & (1 << 3) != 0):
+        if ((self._vwrite1.read() & (1 << 2) != 0) and
+                (self._vwrite1.read() & (1 << 3) != 0)):
             log.warn("Wheels already stopped.")
         else:
             # This is accomplished by flipping bit 5
