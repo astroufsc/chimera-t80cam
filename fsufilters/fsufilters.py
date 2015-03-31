@@ -29,6 +29,9 @@ class FsuFilters(FilterWheelBase):
     def __stop__(self):
         self.abortMovement()
 
+    def abortMovement(self):
+        self.fwhl.move_stop()
+
     @lock
     def setFilter(self, filter):
         """

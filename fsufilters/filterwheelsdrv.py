@@ -26,6 +26,9 @@ class FSUFilterWheel(FSUConn):
         # CAM filter wheel position request vector
         self._wPOS_REQ = ads_var_single(
             self.conn, '.wPOSITIONING_REQUESTED_T80_CAM_BOX', 'i')
+        # # CAM filter wheels stop motion request vector (bit?)
+        # self._bSTOP_REQ = ads_var_single(
+        #     self.conn, '.bSTOP_POSITIONING_REQUESTED_FILTERS_WHEEL', 'i')
         # CAM filter wheels commands vector
         self._vread1 = ads_var_single(self.conn, '.wDWORD_READ[1]', 'i')
         # CAM filter wheels status vectors
@@ -34,6 +37,8 @@ class FSUFilterWheel(FSUConn):
         self._vwrite10 = ads_var_single(self.conn, '.wDWORD_WRITE[10]', 'i')
         self._vwrite12 = ads_var_single(self.conn, '.wDWORD_WRITE[12]', 'i')
         self._vwrite13 = ads_var_single(self.conn, '.wDWORD_WRITE[13]', 'i')
+        #
+        # NOW... Do some sanity checks!
 
     def move_pos(self, filterpos):
         # Ensure the motion bit is set to zero
@@ -78,8 +83,14 @@ class FSUFilterWheel(FSUConn):
         .. method:: move_stop()
             Aborts any current rotation of all filter wheels.
         """
-        # This is accomplished by flipping bit 5
-        self._vread1.write(self._vread1.read() | (1 << 5))
+        # Check if wheels already stopped
+        if (self._vwrite1.read() & (1 << 2) != 0) and (self._vwrite1.read() & (1 << 3) != 0):
+            log.warn("Wheels already stopped.")
+        else:
+            # This is accomplished by flipping bit 5
+            self._vread1.write(self._vread1.read() | (1 << 5))
+            log.info('Filter wheels stopped')
+        # TODO: integrate the bPOS bit status.
 
     def get_pos(self):
         """
