@@ -10,7 +10,6 @@ log = logging.getLogger(name=__name__)
 
 
 class FSUFilterWheel(FSUConn):
-
     """
     Solunia class to interface with the filter wheels component.
     """
@@ -28,7 +27,7 @@ class FSUFilterWheel(FSUConn):
             self.conn, '.wPOSITIONING_REQUESTED_T80_CAM_BOX', 'i')
         # CAM filter wheels stop motion request vector (bit)
         # self._bSTOP_REQ = ads_var_single(
-        #     self.conn, '.bSTOP_POSITIONING_REQUESTED_FILTERS_WHEEL', 'i')
+        # self.conn, '.bSTOP_POSITIONING_REQUESTED_FILTERS_WHEEL', 'i')
         # CAM filter wheels commands vector
         self._vread1 = ads_var_single(self.conn, '.wDWORD_READ[1]', 'i')
         # CAM filter wheels status vectors
@@ -59,15 +58,16 @@ class FSUFilterWheel(FSUConn):
         print self._vwrite1.read() & (1 << 3)
         time.sleep(0.5)
         # print not ((self._vwrite1.read() & (1 << 2) != 0) and
-        #            (self._vwrite1.read() & (1 << 3) != 0))
+        # (self._vwrite1.read() & (1 << 3) != 0))
         timeout = 0
         while not ((self._vwrite1.read() & (1 << 2) != 0) and
-                   (self._vwrite1.read() & (1 << 3) != 0)):
+                       (self._vwrite1.read() & (1 << 3) != 0)):
             # Not in position yet
             time.sleep(0.5)
             print 'Moving flag: ', bin(self._vwrite1.read())
-            print ((self._vwrite1.read() & (1 << 2) != 0),
-                   (self._vwrite1.read() & (1 << 3) != 0))
+            # print ((self._vwrite1.read() & (1 << 2) != 0),
+            # (self._vwrite1.read() & (1 << 3) != 0))
+            print (self.fwheel_is_moving(), self.awheel_is_moving())
             timeout += 1
             if timeout >= 50:
                 # 25000ms is the defined timeout on the PLC programs...
@@ -75,6 +75,28 @@ class FSUFilterWheel(FSUConn):
                 self.check_hw()
                 break
             continue
+
+    def fwheel_is_moving(self):
+        """
+        Return status of filter wheel.
+        :return: True if moving, False otherwise.
+        """
+        # vwrite1.2 flags filter wheel pos reached status,
+        if (self._vwrite1.read() & (1 << 2) != 0):
+            return False
+        else:
+            return True
+
+    def awheel_is_moving(self):
+        """
+        Return status of filter wheel.
+        :return: True if moving, False otherwise.
+        """
+        # vwrite1.3 flags analiser wheel pos reached status.
+        if (self._vwrite1.read() & (1 << 3) != 0):
+            return False
+        else:
+            return True
 
     def move_stop(self):
         """
@@ -91,7 +113,8 @@ class FSUFilterWheel(FSUConn):
             # This is accomplished by flipping bit 5
             self._vread1.write(self._vread1.read() | (1 << 5))
             log.info('Filter wheels stopped')
-        # TODO: integrate the bPOS bit status.
+            # TODO: integrate the bPOS bit status.
+
 
     def get_pos(self):
         """
@@ -105,11 +128,13 @@ class FSUFilterWheel(FSUConn):
         blonks = self._vread0.read()
         return blonks
 
+
     def get_req_pos(self):
         """
         Get rquested position.
         """
         return self._wPOS_REQ.read()
+
 
     def check_hw(self):
         """
@@ -127,7 +152,7 @@ class FSUFilterWheel(FSUConn):
         # .wDWORD_WRITE[0] bit 3: shutter opened flag
         # .wDWORD_WRITE[0] bit 4: filter wheel encoder disconnected or inverted
         # .wDWORD_WRITE[0] bit 5: analyser wheel encoder disconnected or
-        #                         inverted
+        # inverted
         # .wDWORD_WRITE[0] bit 6: filter wheel motor disconnected
         # .wDWORD_WRITE[0] bit 7: analyser wheel motor disconnected
         #
@@ -146,9 +171,9 @@ class FSUFilterWheel(FSUConn):
         # .wDWORD_WRITE[10] bit 5: wave plate motor disconnected
         #
         # .wDWORD_WRITE[12]: error number of the function block M3 servomotor
-        #                   (wave plate)
+        # (wave plate)
         # .wDWORD_WRITE[13]: error number for the axis M3 servomotor (wave
-        #                   plate)
+        # plate)
 
         # For convenience, make all arrays' length 8
         vec_msgs = [('Filter wheel: position timeout',

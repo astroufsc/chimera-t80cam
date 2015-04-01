@@ -10,7 +10,6 @@ from chimera.instruments.ebox.fsufilters.filterwheelsdrv import FSUFilterWheel
 
 
 class FsuFilters(FilterWheelBase):
-
     """
     High level class for the Solunia ebox fit with both filter wheels.
     """
@@ -27,9 +26,10 @@ class FsuFilters(FilterWheelBase):
         self._abort = threading.Event()
 
     def __stop__(self):
-        self.abortMovement()
+        self.stopWheel()
 
-    def abortMovement(self):
+    def stopWheel(self):
+        self._abort.set()
         self.fwhl.move_stop()
 
     @lock
@@ -42,14 +42,17 @@ class FsuFilters(FilterWheelBase):
             name.
             :param str filter: Name of the filter to use.
         """
-        # Match the passed filter name to a wheel position.
         self._abort.clear()
-        for i in range(100):
-            time.sleep(1)
-            self.log.debug("%i" % i)
+        print(self._getFilterPosition(filter))
+        self.fwhl.move_pos(self._getFilterPosition(filter))
+
+        while self.fwhl.fwheel_is_moving() and self.fwhl.awheel_is_moving():
+            time.sleep(0.1)
             if self._abort.isSet():
                 break
-        # self.fwhl.move_pos(self.filters[filter].value())
+            # TODO timeout
+            # TODO check for errors in the wheels
+            # TODO break when both wheels are in position
 
     def getFilter(self):
         """
@@ -63,7 +66,7 @@ class FsuFilters(FilterWheelBase):
         return self._getFilterName(self.fwhl.get_pos())
 
     # def getFilters(self):
-    #     """
+    # """
     #     Return all filters on this wheel(s).
 
     #     .. method:: getFilters()
