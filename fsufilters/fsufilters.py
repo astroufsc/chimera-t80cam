@@ -1,12 +1,16 @@
 import threading
 import time
+import logging
 
 from chimera.core.event import event
 from chimera.core.lock import lock
-# from chimera.core.chimeraobject import ChimeraObject
+from chimera.core.exceptions import ChimeraException, InstrumentBusyException, ChimeraObjectException
+
 from chimera.instruments.filterwheel import FilterWheelBase
 
 from chimera.instruments.ebox.fsufilters.filterwheelsdrv import FSUFilterWheel
+
+log = logging.Logger(__name__)
 
 
 class FsuFilters(FilterWheelBase):
@@ -16,6 +20,7 @@ class FsuFilters(FilterWheelBase):
 
     __config__ = dict(
         filter_wheel_model="Solunia",
+        waitMoveStart=0.5
     )
 
     def __init__(self):
@@ -24,11 +29,13 @@ class FsuFilters(FilterWheelBase):
         # Get me the filter wheel.
         self.fwhl = FSUFilterWheel()
         self._abort = threading.Event()
+        print("Filter wheels acquired")
 
     def __stop__(self):
         self.stopWheel()
 
     def stopWheel(self):
+        print('Abort requested')
         self._abort.set()
         self.fwhl.move_stop()
 
@@ -44,15 +51,20 @@ class FsuFilters(FilterWheelBase):
         """
         self._abort.clear()
         print(self._getFilterPosition(filter))
+        # Set wheels in motion.
         self.fwhl.move_pos(self._getFilterPosition(filter))
-
-        while self.fwhl.fwheel_is_moving() and self.fwhl.awheel_is_moving():
+        # This call returns immediately, hence loop for an abort request.
+        time.sleep(self["waitMoveStart"])
+        timeout = 0
+        while not (self.fwhl.fwheel_is_moving() and self.fwhl.awheel_is_moving()):
             time.sleep(0.1)
             if self._abort.isSet():
                 break
-            # TODO timeout
-            # TODO check for errors in the wheels
-            # TODO break when both wheels are in position
+                # TODO timeout
+            if timeout > 250:
+                # Longer than 25s have passed; something is wrong...
+                self.fwhl.check_hw()
+                # TODO check for errors in the wheels
 
     def getFilter(self):
         """
@@ -64,18 +76,6 @@ class FsuFilters(FilterWheelBase):
         :rtype: int.
         """
         return self._getFilterName(self.fwhl.get_pos())
-
-    # def getFilters(self):
-    # """
-    #     Return all filters on this wheel(s).
-
-    #     .. method:: getFilters()
-    #         Provides a tuple of all filters installed.
-
-    #         :return: Tuple of all filters available.
-    #         :rtype: tuple
-    #     """
-    #     return self["filters"].keys()
 
     @event
     def filterChange(self, newFilter, oldFilter):
@@ -99,7 +99,7 @@ class FsuFilters(FilterWheelBase):
             :param dict request: the image request passed down.
             :return: list of tuples, key-value pairs.
         """
-        # Note: "FWHEEL" is not in the header keywords list on
+        # NOTE: "FWHEEL" is not in the header keywords list on
         # UPAD-ICD-OAJ-9400-2 v. 9
         return [("FWHEEL", self['filter_wheel_model'], 'Filter Wheel Model'),
                 ("FILTER", self.getFilter(), 'Filter for this observation')]

@@ -3,10 +3,21 @@ import time
 
 from adshli.hli import ads_var_single
 
+from chimera.core.exceptions import ChimeraException
 from chimera.instruments.ebox.fsuconn import FSUConn
 
 
 log = logging.getLogger(name=__name__)
+
+
+class FilterWheelException(ChimeraException):
+    def __init__(self, code, msg=""):
+        """"""
+        ChimeraException.__init__(self, msg)
+        self.code = code
+
+    def __str__(self):
+        return "%s (%d)" % (self.message, self.code)
 
 
 class FSUFilterWheel(FSUConn):
@@ -40,41 +51,23 @@ class FSUFilterWheel(FSUConn):
         # NOW... Do some sanity checks!
 
     def move_pos(self, filterpos):
+        log.info('Requested filter position {0}'.format(filterpos))
         # Ensure the motion bit is set to zero
         if (self._vread1.read() & 1) != 0:
             self._vread1.write(self._vread1.read() ^ 1)
+        # reset the stop movement request bit if set.
+        if (self._vread1.read() & (1 << 5)) != 0:
+            self._vread1.write(self._vread1.read() & ~(1 << 5))
         # Set the filter position vector
         self._vread0.write(filterpos)
-        # print 'WD_READ[0] = ', self._vread0.read()
         while self.get_req_pos() != filterpos:
-            print 'Waiting for variable to set...'
             time.sleep(0.1)
-        print 'wPOSITIONING_REQUESTED_T80_CAM_BOX = ', self._wPOS_REQ.read()
-        print 'WD_READ[0] = ', bin(self._vread0.read())
         # Move it
         self._vread1.write(self._vread1.read() ^ 1)
-        print 'Moving flag: ', bin(self._vwrite1.read())
-        print self._vwrite1.read() & (1 << 2)
-        print self._vwrite1.read() & (1 << 3)
-        time.sleep(0.5)
-        # print not ((self._vwrite1.read() & (1 << 2) != 0) and
-        # (self._vwrite1.read() & (1 << 3) != 0))
-        timeout = 0
-        while not ((self._vwrite1.read() & (1 << 2) != 0) and
-                       (self._vwrite1.read() & (1 << 3) != 0)):
-            # Not in position yet
-            time.sleep(0.5)
-            print 'Moving flag: ', bin(self._vwrite1.read())
-            # print ((self._vwrite1.read() & (1 << 2) != 0),
-            # (self._vwrite1.read() & (1 << 3) != 0))
-            print (self.fwheel_is_moving(), self.awheel_is_moving())
-            timeout += 1
-            if timeout >= 50:
-                # 25000ms is the defined timeout on the PLC programs...
-                # Too long to reach position; check errors
-                self.check_hw()
-                break
-            continue
+
+        # RETURN POINT HERE!
+        return
+
 
     def fwheel_is_moving(self):
         """
@@ -82,10 +75,7 @@ class FSUFilterWheel(FSUConn):
         :return: True if moving, False otherwise.
         """
         # vwrite1.2 flags filter wheel pos reached status,
-        if (self._vwrite1.read() & (1 << 2) != 0):
-            return False
-        else:
-            return True
+        return (self._vwrite1.read() & (1 << 2) != 0)
 
     def awheel_is_moving(self):
         """
@@ -93,10 +83,7 @@ class FSUFilterWheel(FSUConn):
         :return: True if moving, False otherwise.
         """
         # vwrite1.3 flags analiser wheel pos reached status.
-        if (self._vwrite1.read() & (1 << 3) != 0):
-            return False
-        else:
-            return True
+        return (self._vwrite1.read() & (1 << 3) != 0)
 
     def move_stop(self):
         """
@@ -105,6 +92,7 @@ class FSUFilterWheel(FSUConn):
         .. method:: move_stop()
             Aborts any current rotation of all filter wheels.
         """
+        print('Stop request received')
         # Check if wheels already stopped
         if ((self._vwrite1.read() & (1 << 2) != 0) and
                 (self._vwrite1.read() & (1 << 3) != 0)):
@@ -176,41 +164,44 @@ class FSUFilterWheel(FSUConn):
         # plate)
 
         # For convenience, make all arrays' length 8
-        vec_msgs = [('Filter wheel: position timeout',
+        vec_msgs0 = ('Filter wheel: position timeout',
                      'Analyser wheel: position timeout',
                      'Shutter: error',
                      'Shutter: opened',
                      'Filter wheel encoder: disconnected or inverted',
                      'Analyser wheel encoder: disconnected or inverted',
                      'Filter wheel: motor disconnected',
-                     'Analyser wheel: motor disconnected'),
-                    ('Filter wheel: motor inverted',
+                     'Analyser wheel: motor disconnected'
+                     )
+        vec_msgs1 = ('Filter wheel: motor inverted',
                      'Analyser wheel: motor inverted',
                      'Filter wheel: position reached',
                      'Analyser wheel: position reached',
                      'Filter wheel: error flag',
                      'Analyser wheel: error flag',
                      '',
-                     ''),
-                    ('Wave plate: enabled',
-                     'Wave plate: error',
-                     'Wave plate: position reached',
-                     'Wave plate: homed',
-                     'Wave plate: encoder disconnected or inverted',
-                     'Wave plate: motor disconnected',
-                     '',
-                     '')]
+                     ''
+                     )
+        vec_msgs10 = ('Wave plate: enabled',
+                      'Wave plate: error',
+                      'Wave plate: position reached',
+                      'Wave plate: homed',
+                      'Wave plate: encoder disconnected or inverted',
+                      'Wave plate: motor disconnected',
+                      '',
+                      ''
+                      )
 
         # Let's start
         for statbit in range(0, 8):
-            if self._vwrite0.read() & (1 << statbit) == 1:
-                print vec_msgs[statbit]
+            if (self._vwrite0.read() & (1 << statbit)) == 1:
+                print vec_msgs0[statbit]
         for statbit in range(0, 8):
-            if self._vwrite1.read() & (1 << statbit) == 1:
-                print vec_msgs[statbit]
+            if (self._vwrite1.read() & (1 << statbit)) == 1:
+                print vec_msgs1[statbit]
         for statbit in range(0, 8):
-            if self._vwrite10.read() & (1 << statbit) == 1:
-                print vec_msgs[statbit]
+            if (self._vwrite10.read() & (1 << statbit)) == 1:
+                print vec_msgs10[statbit]
         # Now take care of the full reg values : 12, 13
         # for idx in [12, 13]:
         print('Function blk M3 servo (wplate) error number: {0}'.format(

@@ -35,12 +35,13 @@ class FSUConn():
             self.conn.open(connpars['plc_ip_adr'],
                            connpars['plc_ip_port'],
                            connpars['timeout'])
+            print('Connected to EBox')
         except:
             print('Error in opening connection')
         self.device = ads_device(self.conn)
-        log.info('FSU device name:', str(self.device.device_name),
-        'ADS state:', self.device.ads_state,
-        'Device state:', self.device.device_state)
+        # log.info('FSU device name:', str(self.device.device_name),
+        # 'ADS state:', self.device.ads_state,
+        # 'Device state:', self.device.device_state)
         # print('FSU device name:', self.device.device_name,
         #       'ADS state:', self.device.ads_state,
         #       'Device state:', self.device.device_state)
