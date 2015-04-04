@@ -1,53 +1,38 @@
 import logging
 import time
 
-from adshli.hli import ads_var_single
-
-from chimera.core.exceptions import ChimeraException
-from chimera.instruments.ebox.fsuconn import FSUConn
+from chimera.instruments.ebox.fsufwheels import FSUFWheels
 
 
 log = logging.getLogger(name=__name__)
 
 
-class FilterWheelException(ChimeraException):
-    def __init__(self, code, msg=""):
-        ChimeraException.__init__(self, msg)
-        self.code = code
-
-    def __str__(self):
-        return "%s (%d)" % (self.message, self.code)
-
-
-class FSUFilterWheel(FSUConn):
+class FSUFilterWheel(FSUFWheels):
     """
     Solunia class to interface with the filter wheels component.
     """
 
     def __init__(self):
-        # Connect to the slave CPU
-        FSUConn.__init__(self)
-        """
-        Initialize object from Chimera.
-        """
-        # CAM filter wheel position vector (0 -> 12)
-        self._vread0 = ads_var_single(self.conn, '.wDWORD_READ[0]', 'i')
-        # CAM filter wheel position request vector
-        self._wPOS_REQ = ads_var_single(
-            self.conn, '.wPOSITIONING_REQUESTED_T80_CAM_BOX', 'i')
-        # CAM filter wheels stop motion request vector (bit)
-        # self._bSTOP_REQ = ads_var_single(
-        # self.conn, '.bSTOP_POSITIONING_REQUESTED_FILTERS_WHEEL', 'i')
-        # CAM filter wheels commands vector
-        self._vread1 = ads_var_single(self.conn, '.wDWORD_READ[1]', 'i')
-        # CAM filter wheels status vectors
-        self._vwrite0 = ads_var_single(self.conn, '.wDWORD_WRITE[0]', 'i')
-        self._vwrite1 = ads_var_single(self.conn, '.wDWORD_WRITE[1]', 'i')
-        self._vwrite10 = ads_var_single(self.conn, '.wDWORD_WRITE[10]', 'i')
-        # self._vwrite12 = ads_var_single(self.conn, '.wDWORD_WRITE[12]', 'i')
-        # self._vwrite13 = ads_var_single(self.conn, '.wDWORD_WRITE[13]', 'i')
-        #
-        # NOW... Do some sanity checks!
+        FSUFWheels.__init__(self)
+        # """
+        # Initialize object from Chimera.
+        # """
+        # # CAM filter wheel position vector (0 -> 12)
+        # self._vread0 = ads_var_single(self.conn, '.wDWORD_READ[0]', 'i')
+        # # CAM filter wheel position request vector
+        # self._wPOS_REQ = ads_var_single(
+        #     self.conn, '.wPOSITIONING_REQUESTED_T80_CAM_BOX', 'i')
+        # # CAM filter wheels stop motion request vector (bit)
+        # # self._bSTOP_REQ = ads_var_single(
+        # # self.conn, '.bSTOP_POSITIONING_REQUESTED_FILTERS_WHEEL', 'i')
+        # # CAM filter wheels commands vector
+        # self._vread1 = ads_var_single(self.conn, '.wDWORD_READ[1]', 'i')
+        # # CAM filter wheels status vectors
+        # self._vwrite0 = ads_var_single(self.conn, '.wDWORD_WRITE[0]', 'i')
+        # self._vwrite1 = ads_var_single(self.conn, '.wDWORD_WRITE[1]', 'i')
+        # self._vwrite10 = ads_var_single(self.conn, '.wDWORD_WRITE[10]', 'i')
+        # # self._vwrite12 = ads_var_single(self.conn, '.wDWORD_WRITE[12]', 'i')
+        # # self._vwrite13 = ads_var_single(self.conn, '.wDWORD_WRITE[13]', 'i')
 
     def move_pos(self, filterpos):
         log.info('Requested filter position {0}'.format(filterpos))
@@ -67,14 +52,13 @@ class FSUFilterWheel(FSUConn):
         # RETURN POINT HERE!
         return
 
-
     def fwheel_is_moving(self):
         """
         Return status of filter wheel.
         :return: True if moving, False otherwise.
         """
         # vwrite1.2 flags filter wheel pos reached status,
-        return (self._vwrite1.read() & (1 << 2) != 0)
+        return self._vwrite1.read() & (1 << 2) != 0
 
     def awheel_is_moving(self):
         """
@@ -82,7 +66,7 @@ class FSUFilterWheel(FSUConn):
         :return: True if moving, False otherwise.
         """
         # vwrite1.3 flags analiser wheel pos reached status.
-        return (self._vwrite1.read() & (1 << 3) != 0)
+        return self._vwrite1.read() & (1 << 3) != 0
 
     def move_stop(self):
         """
@@ -102,7 +86,6 @@ class FSUFilterWheel(FSUConn):
             log.info('Filter wheels stopped')
             # TODO: integrate the bPOS bit status.
 
-
     def get_pos(self):
         """
         Get current filter position.
@@ -115,13 +98,11 @@ class FSUFilterWheel(FSUConn):
         blonks = self._vread0.read()
         return blonks
 
-
     def get_req_pos(self):
         """
         Get rquested position.
         """
         return self._wPOS_REQ.read()
-
 
     def check_hw(self):
         """

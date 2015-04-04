@@ -1,15 +1,13 @@
 import logging
 import time
 
-from adshli.hli import ads_var_single
-
-from chimera.instruments.ebox.fsuconn import FSUConn
-
+# from chimera.instruments.ebox.fsuconn import FSUConn
+from chimera.instruments.ebox.fsufwheels import FSUFWheels
 
 log = logging.getLogger(name=__name__)
 
 
-class FSUPolDriver(FSUConn):
+class FSUPolDriver(FSUFWheels):
     """
         Solunia class to interface with the polarimeter component.
     """
@@ -18,20 +16,7 @@ class FSUPolDriver(FSUConn):
         """
         Class constructor.
         """
-        FSUConn.__init__(self)
-        # Wheels status.
-        self._vwrite0 = ads_var_single(self.conn, '.wDWORD_WRITE[0]', 'i')
-        self._vwrite1 = ads_var_single(self.conn, '.wDWORD_WRITE[1]', 'i')
-        self._vwrite10 = ads_var_single(self.conn, '.wDWORD_WRITE[10]', 'i')
-        self._vwrite20 = ads_var_single(self.conn, '.wDWORD_WRITE[20]', 'i')
-        # polarimeter control vectors, bits 0 to 5 and 0 to 1
-        self._vread20 = ads_var_single(self.conn, '.wDWORD_READ[20]', 'i')
-        self._vread21 = ads_var_single(self.conn, '.wDWORD_READ[21]', 'i')
-        # polarimeter position vector.
-        self._vread22 = ads_var_single(self.conn, '.wDWORD_READ[22]', 'i')
-        # polarimeter status vector
-        self._vwrite20 = ads_var_single(self.conn, '.wDWORD_WRITE[20]', 'i')
-        # wave plate
+        FSUFWheels.__init__(self)
         #
         # Initialize vectors
         #
