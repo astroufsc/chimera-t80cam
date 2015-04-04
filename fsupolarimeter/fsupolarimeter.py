@@ -1,19 +1,19 @@
 import threading
 import time
 import logging
+import threading
 
 from chimera.core.event import event
 from chimera.core.lock import lock
-from chimera.core.exceptions import ChimeraException, InstrumentBusyException, ChimeraObjectException
 
 from chimera.instruments.filterwheel import FilterWheelBase
 
-from chimera.instruments.ebox.fsufilters.filterwheelsdrv import FSUFilterWheel
+from chimera.instruments.ebox.fsupolarimeter.polarizerdrv import FSUPolDriver
 
 log = logging.Logger(__name__)
 
 
-class FsuFilters(FilterWheelBase):
+class FsuPolarimeter(FilterWheelBase):
     """
     High level class for the Solunia ebox fit with both filter wheels.
     """
@@ -26,8 +26,8 @@ class FsuFilters(FilterWheelBase):
     def __init__(self):
         """Constructor."""
         FilterWheelBase.__init__(self)
-        # Get me the filter wheel.
-        self.fwhl = FSUFilterWheel()
+        # Get me the polarizer wheel.
+        self.pwhl = FSUPolDriver()
         self._abort = threading.Event()
         print("Filter wheels acquired")
 
@@ -37,7 +37,7 @@ class FsuFilters(FilterWheelBase):
     def stopWheel(self):
         print('Abort requested')
         self._abort.set()
-        self.fwhl.move_stop()
+        # self.fwhl.move_stop()
 
     @lock
     def setFilter(self, filter):

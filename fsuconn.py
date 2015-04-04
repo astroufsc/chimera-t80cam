@@ -16,7 +16,6 @@ log = logging.getLogger(name=__name__)
 
 
 class FSUConn():
-
     """
     FSU communication common class.
     """
@@ -27,21 +26,15 @@ class FSUConn():
                                        connpars['plc_ams_port'],
                                        connpars['pc_ams_id'],
                                        connpars['pc_ams_port'])
-        except Exception:
-            print('Error in connection def.')
-            # log.critical('Unable to connect to FSU')
+        except Exception as e:
+            log.critical('Unable to connect to FSU: {0}'.format(e))
         # Open a connection to the slave PLC controller.
         try:
             self.conn.open(connpars['plc_ip_adr'],
                            connpars['plc_ip_port'],
                            connpars['timeout'])
-            print('Connected to EBox')
-        except:
-            print('Error in opening connection')
-        self.device = ads_device(self.conn)
-        # log.info('FSU device name:', str(self.device.device_name),
-        # 'ADS state:', self.device.ads_state,
-        # 'Device state:', self.device.device_state)
-        # print('FSU device name:', self.device.device_name,
-        #       'ADS state:', self.device.ads_state,
-        #       'Device state:', self.device.device_state)
+            log.info('Connected to EBox')
+        except Exception as e:
+            print('Error in opening connection: {0}'.format(e))
+        else:
+            self.device = ads_device(self.conn)

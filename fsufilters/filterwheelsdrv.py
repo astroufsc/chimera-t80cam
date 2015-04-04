@@ -12,7 +12,6 @@ log = logging.getLogger(name=__name__)
 
 class FilterWheelException(ChimeraException):
     def __init__(self, code, msg=""):
-        """"""
         ChimeraException.__init__(self, msg)
         self.code = code
 
@@ -45,8 +44,8 @@ class FSUFilterWheel(FSUConn):
         self._vwrite0 = ads_var_single(self.conn, '.wDWORD_WRITE[0]', 'i')
         self._vwrite1 = ads_var_single(self.conn, '.wDWORD_WRITE[1]', 'i')
         self._vwrite10 = ads_var_single(self.conn, '.wDWORD_WRITE[10]', 'i')
-        self._vwrite12 = ads_var_single(self.conn, '.wDWORD_WRITE[12]', 'i')
-        self._vwrite13 = ads_var_single(self.conn, '.wDWORD_WRITE[13]', 'i')
+        # self._vwrite12 = ads_var_single(self.conn, '.wDWORD_WRITE[12]', 'i')
+        # self._vwrite13 = ads_var_single(self.conn, '.wDWORD_WRITE[13]', 'i')
         #
         # NOW... Do some sanity checks!
 
@@ -204,7 +203,7 @@ class FSUFilterWheel(FSUConn):
                 print vec_msgs10[statbit]
         # Now take care of the full reg values : 12, 13
         # for idx in [12, 13]:
-        print('Function blk M3 servo (wplate) error number: {0}'.format(
-            self._vwrite12.read()))
-        print('Function blk M3 servo axis (wplate)error number: {0}'.format(
-            self._vwrite13.read()))
+        # print('Function blk M3 servo (wplate) error number: {0}'.format(
+        #     self._vwrite12.read()))
+        # print('Function blk M3 servo axis (wplate)error number: {0}'.format(
+        #     self._vwrite13.read()))
