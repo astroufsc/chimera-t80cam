@@ -14,25 +14,9 @@ class FSUFilterWheel(FSUFWheels):
 
     def __init__(self):
         FSUFWheels.__init__(self)
-        # """
-        # Initialize object from Chimera.
-        # """
-        # # CAM filter wheel position vector (0 -> 12)
-        # self._vread0 = ads_var_single(self.conn, '.wDWORD_READ[0]', 'i')
-        # # CAM filter wheel position request vector
-        # self._wPOS_REQ = ads_var_single(
-        #     self.conn, '.wPOSITIONING_REQUESTED_T80_CAM_BOX', 'i')
-        # # CAM filter wheels stop motion request vector (bit)
-        # # self._bSTOP_REQ = ads_var_single(
-        # # self.conn, '.bSTOP_POSITIONING_REQUESTED_FILTERS_WHEEL', 'i')
-        # # CAM filter wheels commands vector
-        # self._vread1 = ads_var_single(self.conn, '.wDWORD_READ[1]', 'i')
-        # # CAM filter wheels status vectors
-        # self._vwrite0 = ads_var_single(self.conn, '.wDWORD_WRITE[0]', 'i')
-        # self._vwrite1 = ads_var_single(self.conn, '.wDWORD_WRITE[1]', 'i')
-        # self._vwrite10 = ads_var_single(self.conn, '.wDWORD_WRITE[10]', 'i')
-        # # self._vwrite12 = ads_var_single(self.conn, '.wDWORD_WRITE[12]', 'i')
-        # # self._vwrite13 = ads_var_single(self.conn, '.wDWORD_WRITE[13]', 'i')
+        """
+        Initialize object from Chimera.
+        """
 
     def move_pos(self, filterpos):
         log.info('Requested filter position {0}'.format(filterpos))
@@ -48,8 +32,6 @@ class FSUFilterWheel(FSUFWheels):
             time.sleep(0.1)
         # Move it
         self._vread1.write(self._vread1.read() ^ 1)
-
-        # RETURN POINT HERE!
         return
 
     def fwheel_is_moving(self):
@@ -100,7 +82,7 @@ class FSUFilterWheel(FSUFWheels):
 
     def get_req_pos(self):
         """
-        Get rquested position.
+        Get requested position.
         """
         return self._wPOS_REQ.read()
 
@@ -162,15 +144,6 @@ class FSUFilterWheel(FSUFWheels):
                      '',
                      ''
                      )
-        vec_msgs10 = ('Wave plate: enabled',
-                      'Wave plate: error',
-                      'Wave plate: position reached',
-                      'Wave plate: homed',
-                      'Wave plate: encoder disconnected or inverted',
-                      'Wave plate: motor disconnected',
-                      '',
-                      ''
-                      )
 
         # Let's start
         for statbit in range(0, 8):
@@ -179,9 +152,9 @@ class FSUFilterWheel(FSUFWheels):
         for statbit in range(0, 8):
             if (self._vwrite1.read() & (1 << statbit)) == 1:
                 print vec_msgs1[statbit]
-        for statbit in range(0, 8):
-            if (self._vwrite10.read() & (1 << statbit)) == 1:
-                print vec_msgs10[statbit]
+        # for statbit in range(0, 8):
+        #     if (self._vwrite10.read() & (1 << statbit)) == 1:
+        #         print vec_msgs10[statbit]
         # Now take care of the full reg values : 12, 13
         # for idx in [12, 13]:
         # print('Function blk M3 servo (wplate) error number: {0}'.format(

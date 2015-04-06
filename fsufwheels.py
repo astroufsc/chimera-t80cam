@@ -34,6 +34,8 @@ class FSUFWheels():
         # self.conn, '.bSTOP_POSITIONING_REQUESTED_FILTERS_WHEEL', 'i')
         # CAM/POL filter wheels commands vector
         self._vread1 = ads_var_single(self.conn, '.wDWORD_READ[1]', 'i')
+        self._vread10 = ads_var_single(self.conn, '.wDWORD_READ[10]', 'i')
+        self._vread12 = ads_var_single(self.conn, '.wDWORD_READ[12]', 'i')
         self._vread20 = ads_var_single(self.conn, '.wDWORD_READ[20]', 'i')
         self._vread21 = ads_var_single(self.conn, '.wDWORD_READ[21]', 'i')
         self._vread22 = ads_var_single(self.conn, '.wDWORD_READ[22]', 'i')

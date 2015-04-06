@@ -37,10 +37,10 @@ class FsuPolarimeter(FilterWheelBase):
     def stopWheel(self):
         print('Abort requested')
         self._abort.set()
-        # self.fwhl.move_stop()
+        # self.pwhl.move_stop()
 
     @lock
-    def setFilter(self, filter):
+    def setFilter(self, filt):
         """
         Set the current filter.
 
@@ -50,20 +50,20 @@ class FsuPolarimeter(FilterWheelBase):
             :param str filter: Name of the filter to use.
         """
         self._abort.clear()
-        print(self._getFilterPosition(filter))
+        print(self._getFilterPosition(filt))
         # Set wheels in motion.
-        self.fwhl.move_pos(self._getFilterPosition(filter))
+        self.pwhl.move_pos(self._getFilterPosition(filt))
         # This call returns immediately, hence loop for an abort request.
         time.sleep(self["waitMoveStart"])
         timeout = 0
-        while not (self.fwhl.fwheel_is_moving() and
-                       self.fwhl.awheel_is_moving()):
+        while not (self.pwhl.fwheel_is_moving() and
+                       self.pwhl.awheel_is_moving()):
             time.sleep(0.1)
             if self._abort.isSet():
                 break
             if timeout > 250:
                 # Longer than 25s have passed; something is wrong...
-                self.fwhl.check_hw()
+                self.pwhl.check_hw()
 
     def getFilter(self):
         """
@@ -74,7 +74,7 @@ class FsuPolarimeter(FilterWheelBase):
         :return: Current filter.
         :rtype: int.
         """
-        return self._getFilterName(self.fwhl.get_pos())
+        return self._getFilterName(self.pwhl.get_pos())
 
     @event
     def filterChange(self, newFilter, oldFilter):
