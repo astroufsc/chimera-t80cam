@@ -49,7 +49,6 @@ class FsuPolarimeter(FilterWheelBase):
             :param str filt: Name of the filter to use.
         """
         self._abort.clear()
-        print(self._getFilterPosition(filt))
         # Set wheels in motion.
         self.pwhl.move_pwheel_pos(self._getFilterPosition(filt))
         # This call returns immediately, hence loop for an abort request.

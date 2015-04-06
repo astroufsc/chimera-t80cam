@@ -51,9 +51,9 @@ class FSUPolDriver(FSUFWheels):
         #     while not self._vread20.read() & (1 << 3):
         #         time.sleep(0.1)
         #         continue
-        #     log.info('Polarimeter wheel homed')
+        #     log.info('Polarimeter wheel homed') # ***
         # except:  # already homed, cool
-        # log.info('Polarimeter wheel homed')
+        # log.info('Polarimeter wheel homed') # *** (notice anything?)
         # TODO: see above, define an exception that can be raised to warn via console and trigger the except clause.
         if not (self._vwrite20.read() & (1 << 3) and
                     log.warning('homing polarimeter wheel')):
