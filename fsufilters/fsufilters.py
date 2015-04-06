@@ -4,7 +4,7 @@ import logging
 
 from chimera.core.event import event
 from chimera.core.lock import lock
-from chimera.core.exceptions import ChimeraException, InstrumentBusyException, ChimeraObjectException
+# from chimera.core.exceptions import ChimeraException, InstrumentBusyException, ChimeraObjectException
 
 from chimera.instruments.filterwheel import FilterWheelBase
 
@@ -40,19 +40,19 @@ class FsuFilters(FilterWheelBase):
         self.fwhl.move_stop()
 
     @lock
-    def setFilter(self, filter):
+    def setFilter(self, flt):
         """
         Set the current filter.
 
-        .. method:: setFilter(filter)
+        .. method:: setFilter(flt)
             Sets the filter wheel(s) to the position defined for the filter
             name.
-            :param str filter: Name of the filter to use.
+            :param str flt: Name of the filter to use.
         """
         self._abort.clear()
-        print(self._getFilterPosition(filter))
+        print(self._getFilterPosition(flt))
         # Set wheels in motion.
-        self.fwhl.move_pos(self._getFilterPosition(filter))
+        self.fwhl.move_pos(self._getFilterPosition(flt))
         # This call returns immediately, hence loop for an abort request.
         time.sleep(self["waitMoveStart"])
         timeout = 0

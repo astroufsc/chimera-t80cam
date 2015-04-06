@@ -1,9 +1,8 @@
 import threading
 import time
 import logging
-import threading
 
-from chimera.core.event import event
+# from chimera.core.event import event
 from chimera.core.lock import lock
 
 from chimera.instruments.filterwheel import FilterWheelBase
@@ -19,7 +18,7 @@ class FsuPolarimeter(FilterWheelBase):
     """
 
     __config__ = dict(
-        filter_wheel_model="Solunia",
+        polarimeter_model="Solunia",
         waitMoveStart=0.5
     )
 
@@ -29,7 +28,7 @@ class FsuPolarimeter(FilterWheelBase):
         # Get me the polarizer wheel.
         self.pwhl = FSUPolDriver()
         self._abort = threading.Event()
-        print("Filter wheels acquired")
+        print("Polarimeter acquired")
 
     def __stop__(self):
         self.stopWheel()
@@ -37,27 +36,27 @@ class FsuPolarimeter(FilterWheelBase):
     def stopWheel(self):
         print('Abort requested')
         self._abort.set()
-        # self.pwhl.move_stop()
+        self.pwhl.stop_pwheel()
 
     @lock
     def setFilter(self, filt):
         """
         Set the current filter.
 
-        .. method:: setFilter(filter)
+        .. method:: setFilter(filt)
             Sets the filter wheel(s) to the position defined for the filter
             name.
-            :param str filter: Name of the filter to use.
+            :param str filt: Name of the filter to use.
         """
         self._abort.clear()
         print(self._getFilterPosition(filt))
         # Set wheels in motion.
-        self.pwhl.move_pos(self._getFilterPosition(filt))
+        self.pwhl.move_pwheel_pos(self._getFilterPosition(filt))
         # This call returns immediately, hence loop for an abort request.
         time.sleep(self["waitMoveStart"])
         timeout = 0
         while not (self.pwhl.fwheel_is_moving() and
-                       self.pwhl.awheel_is_moving()):
+                   self.pwhl.awheel_is_moving()):
             time.sleep(0.1)
             if self._abort.isSet():
                 break
@@ -74,19 +73,19 @@ class FsuPolarimeter(FilterWheelBase):
         :return: Current filter.
         :rtype: int.
         """
-        return self._getFilterName(self.pwhl.get_pos())
+        return self._getFilterName(self.pwhl.get_pwheel_pos())
 
-    @event
-    def filterChange(self, newFilter, oldFilter):
-        """
-        Fired when the wheel changes the current filter.
-
-        @param newFilter: The new current filter.
-        @type  newFilter: str
-
-        @param oldFilter: The last filter.
-        @type  oldFilter: str
-        """
+    # @event
+    # def filterChange(self, newFilter, oldFilter):
+    #     """
+    #     Fired when the wheel changes the current filter.
+    #
+    #     @param newFilter: The new current filter.
+    #     @type  newFilter: str
+    #
+    #     @param oldFilter: The last filter.
+    #     @type  oldFilter: str
+    #     """
 
     def getMetadata(self, request):
         """
@@ -100,5 +99,6 @@ class FsuPolarimeter(FilterWheelBase):
         """
         # NOTE: "FWHEEL" is not in the header keywords list on
         # UPAD-ICD-OAJ-9400-2 v. 9
-        return [("FWHEEL", self['filter_wheel_model'], 'Filter Wheel Model'),
-                ("FILTER", self.getFilter(), 'Filter for this observation')]
+        # return [("FWHEEL", self['filter_wheel_model'], 'Filter Wheel Model'),
+        # ("FILTER", self.getFilter(), 'Filter for this observation')]
+        pass

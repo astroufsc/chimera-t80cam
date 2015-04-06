@@ -3,7 +3,7 @@ import time
 
 from chimera.instruments.ebox.fsufwheels import FSUFWheels
 
-log = logging.getLogger(name=__name__)
+log = logging.getLogger(__name__)
 
 
 class FSUPolDriver(FSUFWheels):
@@ -44,7 +44,7 @@ class FSUPolDriver(FSUFWheels):
         ########################################################
         # Reverse logic
         # try:
-        #     not self._vwrite20.read() & (1 << 3) and
+        # not self._vwrite20.read() & (1 << 3) and
         #     log.warning('homing polarimeter wheel')
         #     # Not homed, start homing
         #     self._vread21.write(self._vread21.read() | (1 << 0))
@@ -122,6 +122,22 @@ class FSUPolDriver(FSUFWheels):
         self._vread12.write(plpos)
         # Move
         self._vread10.write(self._vread10.read() ^ (1 << 4))
+
+    def fwheel_is_moving(self):
+        """
+        Return status of filter wheel.
+        :return: True if moving, False otherwise.
+        """
+        # vwrite1.2 flags filter wheel pos reached status,
+        return self._vwrite1.read() & (1 << 2) != 0
+
+    def awheel_is_moving(self):
+        """
+        Return status of filter wheel.
+        :return: True if moving, False otherwise.
+        """
+        # vwrite1.3 flags analiser wheel pos reached status.
+        return self._vwrite1.read() & (1 << 3) != 0
 
     def jog_pwheel(self, mode):
         """
