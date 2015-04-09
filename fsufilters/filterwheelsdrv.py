@@ -1,25 +1,27 @@
 import logging
 import time
 
+from chimera.instruments.ebox.fsuconn import FSUConn
 from chimera.instruments.ebox.fsufwheels import FSUFWheels
 
 
 log = logging.getLogger(name=__name__)
 
 
-class FSUFilterWheel(FSUFWheels):
+class FSUFilterWheel(FSUConn, FSUFWheels):
     """
     Solunia class to interface with the filter wheels component.
     """
 
     def __init__(self):
+        FSUConn.__init__(self)
         FSUFWheels.__init__(self)
         """
         Initialize object from Chimera.
         """
 
     def move_pos(self, filterpos):
-        log.info('Requested filter position {0}'.format(filterpos))
+        # log.info('Requested filter position {0}'.format(filterpos))
         # Ensure the motion bit is set to zero
         if (self._vread1.read() & 1) != 0:
             self._vread1.write(self._vread1.read() ^ 1)

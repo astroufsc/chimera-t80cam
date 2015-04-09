@@ -27,13 +27,15 @@ class FSUConn():
                                        connpars['pc_ams_id'],
                                        connpars['pc_ams_port'])
         except Exception as e:
-            log.critical('Unable to connect to FSU: {0}'.format(e))
+            # log.critical('Unable to connect to FSU: {0}'.format(e))
+            print('Unable to connect to FSU: {0}'.format(e))
         # Open a connection to the slave PLC controller.
         try:
             self.conn.open(connpars['plc_ip_adr'],
                            connpars['plc_ip_port'],
                            connpars['timeout'])
-            log.info('Connected to EBox')
+            # log.info('Connected to EBox')
+            print('Connected to EBox')
         except Exception as e:
             print('Error in opening connection: {0}'.format(e))
         else:

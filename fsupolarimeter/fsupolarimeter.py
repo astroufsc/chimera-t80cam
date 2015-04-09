@@ -36,7 +36,7 @@ class FsuPolarimeter(FilterWheelBase):
     def stopWheel(self):
         print('Abort requested')
         self._abort.set()
-        self.pwhl.stop_pwheel()
+        self.pwhl.stop_calpol()
 
     @lock
     def setFilter(self, filt):
@@ -50,7 +50,7 @@ class FsuPolarimeter(FilterWheelBase):
         """
         self._abort.clear()
         # Set wheels in motion.
-        self.pwhl.move_pwheel_pos(self._getFilterPosition(filt))
+        self.pwhl.move_calpol_pos(self._getFilterPosition(filt))
         # This call returns immediately, hence loop for an abort request.
         time.sleep(self["waitMoveStart"])
         timeout = 0
@@ -72,7 +72,7 @@ class FsuPolarimeter(FilterWheelBase):
         :return: Current filter.
         :rtype: int.
         """
-        return self._getFilterName(self.pwhl.get_pwheel_pos())
+        return self._getFilterName(self.pwhl.get_calpol_pos())
 
     # @event
     # def filterChange(self, newFilter, oldFilter):
