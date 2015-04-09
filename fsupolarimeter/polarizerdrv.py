@@ -78,11 +78,11 @@ class FSUPolDriver(FSUConn, FSUFWheels):
 
     def jog_wplate(self, mode):
         if mode is '+':
-            self._vread10.write(self._vread10.read() & ~(1 << 1))
             self._vread10.write(self._vread10.read() | (1 << 2))
-        elif mode is '-':
             self._vread10.write(self._vread10.read() & ~(1 << 1))
+        elif mode is '-':
             self._vread10.write(self._vread10.read() | (1 << 3))
+            self._vread10.write(self._vread10.read() & ~(1 << 1))
         else:  # mode not in ('+', '-')
             # log.error("Invalid option; must be '+' or '-'")
             print("Invalid option; must be '+' or '-'")
