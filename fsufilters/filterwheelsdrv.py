@@ -89,45 +89,6 @@ class FSUFilterWheel(FSUConn, FSUFWheels):
         return self._wPOS_REQ.read()
 
     def check_hw(self):
-        """
-        Check hardware sanity.
-
-        .. method:: check_hw()
-            Checks al PLC registers for fault conditions.
-
-        :return: various fault messages/exceptions.
-        """
-        # The vectors are:
-        # .wDWORD_WRITE[0] bit 0: timeout filter wheel position
-        # .wDWORD_WRITE[0] bit 1: timeout analyser wheel position
-        # .wDWORD_WRITE[0] bit 2: shutter error flag
-        # .wDWORD_WRITE[0] bit 3: shutter opened flag
-        # .wDWORD_WRITE[0] bit 4: filter wheel encoder disconnected or inverted
-        # .wDWORD_WRITE[0] bit 5: analyser wheel encoder disconnected or
-        # inverted
-        # .wDWORD_WRITE[0] bit 6: filter wheel motor disconnected
-        # .wDWORD_WRITE[0] bit 7: analyser wheel motor disconnected
-        #
-        # .wDWORD_WRITE[1] bit 0: filter wheel motor inverted
-        # .wDWORD_WRITE[1] bit 1: analyser wheel motor inverted
-        # .wDWORD_WRITE[1] bit 2: filter wheel position reached flag
-        # .wDWORD_WRITE[1] bit 3: analyser wheel position reached flag
-        # .wDWORD_WRITE[1] bit 4: filter wheel error flag
-        # .wDWORD_WRITE[1] bit 5: analyser wheel error flag
-        #
-        # .wDWORD_WRITE[10] bit 0: wave plate enabled flag
-        # .wDWORD_WRITE[10] bit 1: wave plate error flag
-        # .wDWORD_WRITE[10] bit 2: wave plate position reached flag
-        # .wDWORD_WRITE[10] bit 3: wave plate homed flag
-        # .wDWORD_WRITE[10] bit 4: wave plate encoder disconnected or inverted
-        # .wDWORD_WRITE[10] bit 5: wave plate motor disconnected
-        #
-        # .wDWORD_WRITE[12]: error number of the function block M3 servomotor
-        # (wave plate)
-        # .wDWORD_WRITE[13]: error number for the axis M3 servomotor (wave
-        # plate)
-
-        # For convenience, make all arrays' length 8
         vec_msgs0 = ('Filter wheel: position timeout',
                      'Analyser wheel: position timeout',
                      'Shutter: error',
@@ -146,8 +107,6 @@ class FSUFilterWheel(FSUConn, FSUFWheels):
                      '',
                      ''
                      )
-
-        # Let's start
         for statbit in range(0, 8):
             if (self._vwrite0.read() & (1 << statbit)) == 1:
                 print vec_msgs0[statbit]

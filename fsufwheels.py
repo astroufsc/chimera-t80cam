@@ -1,16 +1,6 @@
 from adshli.hli import ads_var_single
 
-# from chimera.instruments.ebox.fsuconn import FSUConn
 from chimera.core.exceptions import ChimeraException
-
-
-class FSUException(ChimeraException):
-    def __init__(self, code, msg=""):
-        ChimeraException.__init__(self, msg)
-        self.code = code
-
-    def __str__(self):
-        return "%s (%d)" % (self.message, self.code)
 
 
 class FSUFWheels():
