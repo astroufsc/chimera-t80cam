@@ -1,13 +1,13 @@
 from distutils.core import setup
 
 setup(
-    name='chimera_template',
+    name='chimera_t8cam',
     version='0.0.1',
-    packages=['chimera_template', 'chimera_template.instruments', 'chimera_template.controllers'],
+    packages=['chimera_t80cam', 'chimera_t80cam.instruments', 'chimera_t80cam.controllers'],
     scripts=[],
-    url='http://github.com/astroufsc/chimera_template',
+    url='http://github.com/astroufsc/chimera_t80cam',
     license='GPL v2',
-    author='William Schoenell',
-    author_email='william@iaa.es',
-    description='Template for chimera plugins'
+    author='Tiago Ribeiro',
+    author_email='tribeiro@ufs.br',
+    description='Chimera plugins for T80Cam'
 )
