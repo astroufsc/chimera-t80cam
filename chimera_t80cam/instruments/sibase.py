@@ -4,8 +4,12 @@ import xml.etree.ElementTree as ETree
 import numpy as N
 from astropy.io.fits import Header
 
+import select
+
 from si.client import SIClient, AckException
 from si.commands.camera import *
+from si.packet import Packet
+from si.packets.ack import Ack
 
 from chimera.interfaces.camera import (CCD, CameraFeature, ReadoutMode,
                                        InvalidReadoutMode, CameraStatus,
@@ -30,7 +34,7 @@ class SIException(ChimeraException):
     pass
 
 
-class SIBase(CameraBase, object):
+class SIBase(CameraBase):
     """
     Spectral Instruments Base camera class. Defines functions to control the
     camera alone. This can be used as base class for cameras with different
@@ -43,7 +47,8 @@ class SIBase(CameraBase, object):
     __config__ = {'device': 'ethernet', 'ccd': CCD.IMAGING, 'temp_delta': 2.0,
                   'camera_model': 'Spectral Instruments 1110 SN 105',
                   'ccd_model': 'e2V CCD 290-99',
-                  'camera_host': '192.168.0.117', 'camera_port': 2055}
+                  'camera_host': '127.0.0.1', 'camera_port': 2055,
+                  'localhost': False}
 
     def __init__(self):
         CameraBase.__init__(self)
@@ -192,9 +197,9 @@ class SIBase(CameraBase, object):
             Generates an instance list of lists containing name,value,unit
              strings.
         """
-        self.stats = []
         lines = self.client.executeCommand(
             GetStatusFromCamera()).statuslist.splitlines()
+        self.stats = []
         for i in range(len(lines)):
             self.stats += [re.split(',(.+),', lines[i])]
 
@@ -262,7 +267,10 @@ class SIBase(CameraBase, object):
     @lock
     def getTemperature(self):
         ttpl = list()
-        self.get_status()
+        try:
+            self.get_status()
+        except:
+            self.log.warning('Could not update camera temperature.')
         for i in range(len(self.stats)):
             if "CCD Temp." in self.stats[i][0]:
                 ttpl.append(self.stats[i][1].replace(',', '.'))
@@ -379,16 +387,43 @@ class SIBase(CameraBase, object):
         # self.client.executeCommand(
         # SetCCDFormatParameters(0, 4096, srl_bin, 0, 4096, prl_bin))
 
-        # ok, start it
-        self.exposeBegin(imageRequest)
-
-        self.client.executeCommand(Acquire())
-
+        cmd = Acquire()
+        cmd_to_send = cmd.command()
         # save time exposure started
-        self.lastFrameStartTime = dt.datetime.utcnow()
+        self.__lastFrameStart = dt.datetime.utcnow()
         self.lastFrameTemp = self.getTemperature()
 
         status = CameraStatus.OK
+
+        # ok, start it
+        self.exposeBegin(imageRequest)
+
+        # send Acquire command
+        bytes_sent = self.client.sk.send(cmd_to_send.toStruct())
+
+        # check acknowledge
+        ret = select.select([self.client.sk], [], [])
+        if not ret[0]:
+            raise SIException('No answer from camera')
+
+        if ret[0][0] == self.client.sk:
+
+            header = Packet()
+            header_data = self.client.recv(len(header))
+            header.fromStruct(header_data)
+
+            if header.id == 129:
+                ack = Ack()
+                ack.fromStruct(
+                    header_data + self.client.recv(header.length - len(header)))
+
+                if not ack.accept:
+                    raise AckException(
+                        "Camera did not accepted command...")
+            else:
+                raise AckException(
+                        "No acknowledge received from camera...")
+
         self.abort.clear()
 
         while self._isExposing():
@@ -397,10 +432,6 @@ class SIBase(CameraBase, object):
                 self.abortExposure()
                 status = CameraStatus.ABORTED
                 break
-            # this sleep is EXTREMELY important: without it, Python would
-            # stuck on this
-            # thread and abort will not work.
-            time.sleep(0.01)
 
             # end exposure and returns
         return self._endExposure(imageRequest, status)
@@ -417,55 +448,134 @@ class SIBase(CameraBase, object):
 
     def _isExposing(self):
         status = self.client.executeCommand(InquireAcquisitionStatus())
-        self.log.debug(status.exp_done_percent)
         return status.exp_done_percent < 100
 
+    def _isReadingOut(self):
+        status = self.client.executeCommand(InquireAcquisitionStatus())
+        return status.readout_done_percent < 100
 
     def _readout(self, imageRequest):
-        self.readoutBegin(imageRequest)
-        (mode, binning, top, left, width, height) = self._getReadoutModeInfo(
-            imageRequest["binning"], imageRequest["window"])
+        # self.readoutBegin(imageRequest)
 
         # TODO: get initial sizes from pars...
         # imgarray = N.zeros((4096, 4096), N.int32)
         #while not self.abort.isSet():
+        status = CameraStatus.OK
+        if self.abort.isSet():
+            status = CameraStatus.ABORTED
+
         self.abort.clear()
-        while self.isReadingOut():
-            imgdata = self.client.executeCommand(
-                RetrieveImage(ImgType.U16.index))
 
-            self.log.debug('Reading out data...')
+        while self._isReadingOut():
 
-            # Ship the data to the image server (via CameraBase)
-            extra = {"frame_temperature": self.lastFrameTemp,
-                     "frame_start_time": self.lastFrameStartTime}
-            imgarray = N.ndarray(shape=(imgdata[1], imgdata[0]),
-                                 buffer=imgdata[2], dtype=N.uint16)
-            self._saveImage(imageRequest, imgarray, extra)
-            # Got the data, lets do the header
-
-            self.log.debug("Startinh header construction...")
-
-            self.imghdr.append(('SIMPLE', 'T', 'conforms to FITS standard'))
-            # Self. This camera delivers a very non compliant FITS header...
-            camh = self.client.executeCommand(GetImageHeader(1))
-            for i in range(len(camh) / 80):
-                k = camh[80 * i:80 * (i + 1)][0:8].strip()
-                if k == 'SIMPLE':
-                    continue
-                if k == 'END':
-                    break
-                vc = camh[80 * i:80 * (i + 1)][9:].split('/', 1)
-                if len(vc) == 2:
-                    v, c = vc[0].strip(), vc[1].strip().rstrip(',')
-                else:
-                    v, c = '', vc[0].strip().rstrip(',')
-                self.imghdr.append((k, v, c))
             if self.abort.isSet():
-                # We have been aborted!...
-                ack = self.client.executeCommand(TerminateImageRetrieve())
+                self.abortExposure(readout=False)
+                status = CameraStatus.ABORTED
                 break
-                # More cleanup?
+
+        (mode, binning, top, left, width, height) = self._getReadoutModeInfo(
+            imageRequest["binning"], imageRequest["window"])
+
+        headers = {}
+        pix = N.zeros((width,height),dtype=N.uint16)
+
+        if not self["localhost"]:
+            self.log.debug('Remote mode')
+
+            cmd = Acquire()
+
+            while True:
+
+                ret = select.select([self.client.sk], [], [])
+
+                if not ret[0]:
+                    break
+
+                if ret[0][0] == self.client.sk:
+
+                    header = Packet()
+                    header_data = self.client.recv(len(header))
+                    header.fromStruct(header_data)
+
+                    if header.id == 131:  # incoming data pkt
+                        data = cmd.result()  # data structure as defined in data.py
+                        data.fromStruct(
+                            header_data + self.client.recv(header.length - len(header)))
+                        #data.fromStruct (header_data + self.recv (header.length))
+                        # logging.debug(data)
+                        self.log.debug("data type is {}".format(data.data_type))
+                        break
+
+            serial_length, parallel_length, img_buffer = self.client.executeCommand(
+                RetrieveImage(0))
+
+            pix = N.array(img_buffer, dtype=N.uint16)
+
+            if len(pix) != width * height:
+                raise SIException("Wrong image size. Expected %i x %i (%i), got %i" % (width,
+                                                                                     height,
+                                                                                     width *
+                                                                                     height,
+                                                                                     len(pix)))
+
+            pix = pix.reshape(width, height)
+            pix.byteswap(True)
+
+            header = self.client.executeCommand(GetImageHeader(1))
+
+            headers = self._processHeader(header)
+
+        else:
+            self.log.debug('Local mode')
+            # ToDo: Implement local mode. In this case, instead of reading the image and header from the socket
+            # ToDo: save the image to the local disk and read them instead. Should be much faster.
+
+        headers["frame_start_time"] = self.__lastFrameStart
+        headers["frame_temperature"] = self.getTemperature()
+        headers["binning_factor"] = self._binning_factors[binning]
+
+        proxy = self._saveImage(
+            imageRequest, pix, headers)
+        # {"frame_start_time": self.__lastFrameStart,
+        #                         "frame_temperature": self.getTemperature(),
+        #                         "binning_factor": self._binning_factors[binning]})
+
+        # [ABORT POINT]
+        if self.abort.isSet():
+            self.readoutComplete(None, CameraStatus.ABORTED)
+            return None
+
+        self.readoutComplete(proxy, CameraStatus.OK)
+        return proxy
+
+        # return
+
+    def _processHeader(self, header):
+
+        headers = {}
+        n_headers = len(header) / 80
+
+        for k in range(n_headers):
+            line = header[k * 80:(k + 1) * 80]
+
+            name = line[0:8].strip()
+            rest = line[9:]
+
+            if rest.find('/'):
+                l = rest.split("/")
+                if len(l) != 2:
+                    continue
+
+                value, comment = l[0], l[1]
+                value = value.strip()
+                comment = comment[0:comment.rfind(',')].strip()
+
+                headers[name] = (value, comment)
+            else:
+                value = rest.strip()
+                headers[name] = (value, "")
+
+        return headers
 
     # def _getReadoutModeInfo(self, binning, window):
     #     """
