@@ -536,19 +536,23 @@ class SIBase(CameraBase):
             self.log.debug('Local mode')
             # Save the image to the local disk and read them instead. Should be much faster.
             # Todo: Get rid of "local_path" and "local_filename" and use temporary files
-            self.client.executeCommand(SetSaveToFolder(self["local_path"]))
+            self.client.executeCommand(SetSaveToFolderPath(self["local_path"]))
             self.client.executeCommand(SaveImage(self["local_filename"]))
 
-            pix = pyfits.getdata(os.path.join(self["local_path"],
+            hdu = pyfits.open(os.path.join(self["local_path"],
                                               self["local_filename"]))
 
-            headers = pyfits.getheader(os.path.join(self["local_path"],
-                                                    self["local_filename"]))
+            pix = hdu[0].data
+
+            hdu[0].verify('silentfix+warn')
+
+            headers = dict(hdu[0].header)
 
         headers["frame_start_time"] = self.__lastFrameStart
         headers["frame_temperature"] = self.getTemperature()
         headers["binning_factor"] = self._binning_factors[binning]
 
+        self.log.debug('Creating image proxy')
         proxy = self._saveImage(
             imageRequest, pix, headers)
         # {"frame_start_time": self.__lastFrameStart,
@@ -560,6 +564,7 @@ class SIBase(CameraBase):
             self.readoutComplete(None, CameraStatus.ABORTED)
             return None
 
+        self.log.debug('Readout complete')
         self.readoutComplete(proxy, CameraStatus.OK)
         return proxy
 
