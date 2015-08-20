@@ -1,8 +1,11 @@
+
+import os
 import re
-import xml.etree.ElementTree as ETree
+import logging
 
 import numpy as N
 from astropy.io.fits import Header
+from astropy.io import fits as pyfits
 
 import select
 
@@ -33,6 +36,7 @@ ImgType = Enum("U16", "I16", "U32", "I32", "SGL", "DBL")
 class SIException(ChimeraException):
     pass
 
+log = logging.getLogger(__name__)
 
 class SIBase(CameraBase):
     """
@@ -48,7 +52,9 @@ class SIBase(CameraBase):
                   'camera_model': 'Spectral Instruments 1110 SN 105',
                   'ccd_model': 'e2V CCD 290-99',
                   'camera_host': '127.0.0.1', 'camera_port': 2055,
-                  'localhost': False}
+                  'localhost': False,
+                  "local_filename" : 'tmp.fits',
+                  "local_path" : '/tmp/'}
 
     def __init__(self):
         CameraBase.__init__(self)
@@ -473,6 +479,31 @@ class SIBase(CameraBase):
                 status = CameraStatus.ABORTED
                 break
 
+        # Get orphan packet from Acquire command issue in _expose
+        cmd = Acquire()
+
+        while True:
+
+            ret = select.select([self.client.sk], [], [])
+
+            if not ret[0]:
+                break
+
+            if ret[0][0] == self.client.sk:
+
+                header = Packet()
+                header_data = self.client.recv(len(header))
+                header.fromStruct(header_data)
+
+                if header.id == 131:  # incoming data pkt
+                    data = cmd.result()  # data structure as defined in data.py
+                    data.fromStruct(
+                        header_data + self.client.recv(header.length - len(header)))
+                    #data.fromStruct (header_data + self.recv (header.length))
+                    # logging.debug(data)
+                    self.log.debug("data type is {}".format(data.data_type))
+                    break
+
         (mode, binning, top, left, width, height) = self._getReadoutModeInfo(
             imageRequest["binning"], imageRequest["window"])
 
@@ -481,30 +512,6 @@ class SIBase(CameraBase):
 
         if not self["localhost"]:
             self.log.debug('Remote mode')
-
-            cmd = Acquire()
-
-            while True:
-
-                ret = select.select([self.client.sk], [], [])
-
-                if not ret[0]:
-                    break
-
-                if ret[0][0] == self.client.sk:
-
-                    header = Packet()
-                    header_data = self.client.recv(len(header))
-                    header.fromStruct(header_data)
-
-                    if header.id == 131:  # incoming data pkt
-                        data = cmd.result()  # data structure as defined in data.py
-                        data.fromStruct(
-                            header_data + self.client.recv(header.length - len(header)))
-                        #data.fromStruct (header_data + self.recv (header.length))
-                        # logging.debug(data)
-                        self.log.debug("data type is {}".format(data.data_type))
-                        break
 
             serial_length, parallel_length, img_buffer = self.client.executeCommand(
                 RetrieveImage(0))
@@ -527,8 +534,16 @@ class SIBase(CameraBase):
 
         else:
             self.log.debug('Local mode')
-            # ToDo: Implement local mode. In this case, instead of reading the image and header from the socket
-            # ToDo: save the image to the local disk and read them instead. Should be much faster.
+            # Save the image to the local disk and read them instead. Should be much faster.
+            # Todo: Get rid of "local_path" and "local_filename" and use temporary files
+            self.client.executeCommand(SetSaveToFolder(self["local_path"]))
+            self.client.executeCommand(SaveImage(self["local_filename"]))
+
+            pix = pyfits.getdata(os.path.join(self["local_path"],
+                                              self["local_filename"]))
+
+            headers = pyfits.getheader(os.path.join(self["local_path"],
+                                                    self["local_filename"]))
 
         headers["frame_start_time"] = self.__lastFrameStart
         headers["frame_temperature"] = self.getTemperature()
