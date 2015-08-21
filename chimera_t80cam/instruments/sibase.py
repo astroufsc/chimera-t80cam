@@ -508,7 +508,7 @@ class SIBase(CameraBase):
             imageRequest["binning"], imageRequest["window"])
 
         headers = {}
-        pix = N.zeros((width,height),dtype=N.uint16)
+        pix = N.zeros((height,width),dtype=N.uint16)
 
         if not self["localhost"]:
             self.log.debug('Remote mode')
@@ -537,12 +537,12 @@ class SIBase(CameraBase):
             # Save the image to the local disk and read them instead. Should be much faster.
             # Todo: Get rid of "local_path" and "local_filename" and use temporary files
             self.client.executeCommand(SetSaveToFolderPath(self["local_path"]))
-            self.client.executeCommand(SaveImage(self["local_filename"]))
+            self.client.executeCommand(SaveImage(self["local_filename"],'I16'))
 
             hdu = pyfits.open(os.path.join(self["local_path"],
                                               self["local_filename"]))
 
-            pix = hdu[0].data
+            pix += hdu[0].data
 
             hdu[0].verify('silentfix+warn')
 
@@ -552,7 +552,7 @@ class SIBase(CameraBase):
         headers["frame_temperature"] = self.getTemperature()
         headers["binning_factor"] = self._binning_factors[binning]
 
-        self.log.debug('Creating image proxy')
+        self.log.debug('Creating image proxy (%i,%i)'%pix.shape)
         proxy = self._saveImage(
             imageRequest, pix, headers)
         # {"frame_start_time": self.__lastFrameStart,
