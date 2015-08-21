@@ -18,11 +18,13 @@ from chimera.interfaces.camera import (CCD, CameraFeature, ReadoutMode,
                                        InvalidReadoutMode, CameraStatus,
                                        Shutter)
 
-from chimera.util.image import ImageUtil
+from chimera.util.image import Image, ImageUtil
 from chimera.instruments.camera import CameraBase
 from chimera.util.enum import Enum
 from chimera.core.lock import lock
 from chimera.core.exceptions import ChimeraException
+from chimera.core.version import _chimera_name_, _chimera_long_description_
+from chimera.controllers.imageserver.util import getImageServer
 
 from collections import defaultdict
 from itertools import count
@@ -507,8 +509,13 @@ class SIBase(CameraBase):
         (mode, binning, top, left, width, height) = self._getReadoutModeInfo(
             imageRequest["binning"], imageRequest["window"])
 
-        headers = {}
-        pix = N.zeros((height,width),dtype=N.uint16)
+        # headers = {}
+        # pix = N.zeros((height,width),dtype=N.uint16)
+
+       # LAST ABORT POINT
+        if self.abort.isSet():
+            self.readoutComplete(None, CameraStatus.ABORTED)
+            return None
 
         if not self["localhost"]:
             self.log.debug('Remote mode')
@@ -532,39 +539,130 @@ class SIBase(CameraBase):
 
             headers = self._processHeader(header)
 
+            headers["frame_start_time"] = self.__lastFrameStart
+            headers["frame_temperature"] = self.getTemperature()
+            headers["binning_factor"] = self._binning_factors[binning]
+
+            proxy = self._saveImage(
+                imageRequest, pix, headers)
+
         else:
-            self.log.debug('Local mode')
+            self.log.debug('Local mode. Saving file to %s'%(os.path.join(self["local_path"],self["local_filename"])))
             # Save the image to the local disk and read them instead. Should be much faster.
             # Todo: Get rid of "local_path" and "local_filename" and use temporary files
             self.client.executeCommand(SetSaveToFolderPath(self["local_path"]))
             self.client.executeCommand(SaveImage(self["local_filename"],'I16'))
 
+            self.log.debug('Creating image proxy (%i,%i)'%pix.shape)
+
+            # Need to do this in order to fix the image header
             hdu = pyfits.open(os.path.join(self["local_path"],
                                               self["local_filename"]))
 
-            pix += hdu[0].data
+            # pix += hdu[0].data
 
             hdu[0].verify('silentfix+warn')
 
-            headers = dict(hdu[0].header)
+            # headers = dict(hdu[0].header)
 
-        headers["frame_start_time"] = self.__lastFrameStart
-        headers["frame_temperature"] = self.getTemperature()
-        headers["binning_factor"] = self._binning_factors[binning]
+            filename = ''
 
-        self.log.debug('Creating image proxy (%i,%i)'%pix.shape)
-        proxy = self._saveImage(
-            imageRequest, pix, headers)
-        # {"frame_start_time": self.__lastFrameStart,
-        #                         "frame_temperature": self.getTemperature(),
-        #                         "binning_factor": self._binning_factors[binning]})
+            if imageRequest:
+                try:
+                    filename = imageRequest["filename"]
+                except KeyError:
+                    if not filename:
+                        raise TypeError("Invalid filename, you must pass filename=something"
+                                        "or a valid ImageRequest object")
 
-        # [ABORT POINT]
-        if self.abort.isSet():
-            self.readoutComplete(None, CameraStatus.ABORTED)
-            return None
+            filename = ImageUtil.makeFilename(filename)
 
+            hdu[0].header.set("DATE", ImageUtil.formatDate(dt.datetime.utcnow()), "date of file creation")
+            hdu[0].header.set("AUTHOR", _chimera_name_, _chimera_long_description_)
+
+            if imageRequest:
+                for header in imageRequest.headers:
+                    try:
+                        hdu[0].header.set(*header)
+                    except Exception, e:
+                        log.warning("Couldn't add %s: %s" % (str(header), str(e)))
+
+            hdu.writeto(filename)
+            hdu.close()
+
+            img = Image.fromFile(filename)
+
+            (mode, binning, top, left,
+            width, height) = self._getReadoutModeInfo(imageRequest["binning"],
+                                                      imageRequest["window"])
+            binFactor = self._binning_factors[binning]
+            pix_w, pix_h = self.getPixelSize()
+
+            if self["telescope_focal_length"] is not None:  # If there is no telescope_focal_length defined, don't store WCS
+                focal_length = self["telescope_focal_length"]
+
+                scale_x = binFactor * (((180 / N.pi) / focal_length) * (pix_w * 0.001))
+                scale_y = binFactor * (((180 / N.pi) / focal_length) * (pix_h * 0.001))
+
+                full_width, full_height = self.getPhysicalSize()
+                CRPIX1 = ((int(full_width / 2.0)) - left) - 1
+                CRPIX2 = ((int(full_height / 2.0)) - top) - 1
+
+                # Adding WCS coordinates according to FITS standard.
+                # Quick sheet: http://www.astro.iag.usp.br/~moser/notes/GAi_FITSimgs.html
+                # http://adsabs.harvard.edu/abs/2002A%26A...395.1061G
+                # http://adsabs.harvard.edu/abs/2002A%26A...395.1077C
+                img += [("CRPIX1", CRPIX1, "coordinate system reference pixel"),
+                    ("CRPIX2", CRPIX2, "coordinate system reference pixel"),
+                    ("CD1_1",  scale_x * N.cos(self["rotation"]*N.pi/180.), "transformation matrix element (1,1)"),
+                    ("CD1_2", -scale_y * N.sin(self["rotation"]*N.pi/180.), "transformation matrix element (1,2)"),
+                    ("CD2_1", scale_x * N.sin(self["rotation"]*N.pi/180.), "transformation matrix element (2,1)"),
+                    ("CD2_2", scale_y * N.cos(self["rotation"]*N.pi/180.), "transformation matrix element (2,2)")]
+
+            img += [('DATE-OBS',
+                     ImageUtil.formatDate(
+                         self.__lastFrameStart),
+                     'Date exposure started'),
+
+                    ('CCD-TEMP', self.getTemperature(),
+                     'CCD Temperature at Exposure Start [deg. C]'),
+
+                    ("EXPTIME", float(imageRequest['exptime']) or 0.,
+                     "exposure time in seconds"),
+
+                    ('IMAGETYP', imageRequest['type'].strip(),
+                     'Image type'),
+
+                    ('SHUTTER', str(imageRequest['shutter']),
+                     'Requested shutter state'),
+
+                    ('INSTRUME', str(self['camera_model']), 'Name of instrument'),
+                    ('CCD',    str(self['ccd_model']), 'CCD Model'),
+                    ('CCD_DIMX', self.getPhysicalSize()
+                     [0], 'CCD X Dimension Size'),
+                    ('CCD_DIMY', self.getPhysicalSize()
+                     [1], 'CCD Y Dimension Size'),
+                    ('CCDPXSZX', self.getPixelSize()[0],
+                     'CCD X Pixel Size [micrometer]'),
+                    ('CCDPXSZY', self.getPixelSize()[1],
+                     'CCD Y Pixel Size [micrometer]')]
+
+            # register image on ImageServer
+            server = getImageServer(self.getManager())
+            proxy = server.register(img)
+
+
+        # I'll skip a call to saveImage and do all its work in here. A call to it was introducing a big overhead given
+        # the large size of the data on our camera.
+        # proxy = self._saveImage(
+        #     imageRequest, pix, headers)
         self.log.debug('Readout complete')
+
+        # # [ABORT POINT]
+        # if self.abort.isSet():
+        #     self.readoutComplete(None, CameraStatus.ABORTED)
+        #     return None
+
         self.readoutComplete(proxy, CameraStatus.OK)
         return proxy
 
