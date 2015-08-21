@@ -553,15 +553,23 @@ class SIBase(CameraBase):
             self.client.executeCommand(SetSaveToFolderPath(self["local_path"]))
             self.client.executeCommand(SaveImage(self["local_filename"],'I16'))
 
-            self.log.debug('Creating image proxy (%i,%i)'%pix.shape)
+            self.log.debug('Creating image proxy')
 
             # Need to do this in order to fix the image header
             hdu = pyfits.open(os.path.join(self["local_path"],
                                               self["local_filename"]))
 
             # pix += hdu[0].data
+            badcards = ['PG0_38',
+                        'PG0_39',
+                        'PG0_40',
+                        'PG0_60',
+                        'PG0_65']
+            for card in badcards:
+                self.log.debug('Removing card "%s" from header'%card)
+                hdu[0].header.remove(card)
 
-            hdu[0].verify('silentfix+warn')
+            # hdu[0].verify('silentfix+warn')
 
             # headers = dict(hdu[0].header)
 
@@ -587,7 +595,7 @@ class SIBase(CameraBase):
                     except Exception, e:
                         log.warning("Couldn't add %s: %s" % (str(header), str(e)))
 
-            hdu.writeto(filename)
+            hdu.writeto(filename,output_verify='silentfix+warn')
             hdu.close()
 
             img = Image.fromFile(filename)
