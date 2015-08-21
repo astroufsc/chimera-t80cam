@@ -553,8 +553,6 @@ class SIBase(CameraBase):
             self.client.executeCommand(SetSaveToFolderPath(self["local_path"]))
             self.client.executeCommand(SaveImage(self["local_filename"],'I16'))
 
-            self.log.debug('Creating image proxy')
-
             # Need to do this in order to fix the image header
             hdu = pyfits.open(os.path.join(self["local_path"],
                                               self["local_filename"]))
@@ -585,6 +583,8 @@ class SIBase(CameraBase):
 
             filename = ImageUtil.makeFilename(filename)
 
+            self.log.debug('Adding header information')
+
             hdu[0].header.set("DATE", ImageUtil.formatDate(dt.datetime.utcnow()), "date of file creation")
             hdu[0].header.set("AUTHOR", _chimera_name_, _chimera_long_description_)
 
@@ -594,11 +594,6 @@ class SIBase(CameraBase):
                         hdu[0].header.set(*header)
                     except Exception, e:
                         log.warning("Couldn't add %s: %s" % (str(header), str(e)))
-
-            hdu.writeto(filename,output_verify='silentfix+warn')
-            hdu.close()
-
-            img = Image.fromFile(filename)
 
             (mode, binning, top, left,
             width, height) = self._getReadoutModeInfo(imageRequest["binning"],
@@ -620,14 +615,16 @@ class SIBase(CameraBase):
                 # Quick sheet: http://www.astro.iag.usp.br/~moser/notes/GAi_FITSimgs.html
                 # http://adsabs.harvard.edu/abs/2002A%26A...395.1061G
                 # http://adsabs.harvard.edu/abs/2002A%26A...395.1077C
-                img += [("CRPIX1", CRPIX1, "coordinate system reference pixel"),
+                wcs = [("CRPIX1", CRPIX1, "coordinate system reference pixel"),
                     ("CRPIX2", CRPIX2, "coordinate system reference pixel"),
                     ("CD1_1",  scale_x * N.cos(self["rotation"]*N.pi/180.), "transformation matrix element (1,1)"),
                     ("CD1_2", -scale_y * N.sin(self["rotation"]*N.pi/180.), "transformation matrix element (1,2)"),
                     ("CD2_1", scale_x * N.sin(self["rotation"]*N.pi/180.), "transformation matrix element (2,1)"),
                     ("CD2_2", scale_y * N.cos(self["rotation"]*N.pi/180.), "transformation matrix element (2,2)")]
+                for card in wcs:
+                    hdu[0].header.set(*card)
 
-            img += [('DATE-OBS',
+            chimeraCards = [('DATE-OBS',
                      ImageUtil.formatDate(
                          self.__lastFrameStart),
                      'Date exposure started'),
@@ -655,8 +652,16 @@ class SIBase(CameraBase):
                     ('CCDPXSZY', self.getPixelSize()[1],
                      'CCD Y Pixel Size [micrometer]')]
 
+            for card in chimeraCards:
+                hdu[0].header.set(*card)
+
+            self.log.debug('Writting new fits to disk')
+            hdu.writeto(filename,output_verify='silentfix+warn')
+            hdu.close()
+            self.log.debug('Registering image and creating proxy')
             # register image on ImageServer
             server = getImageServer(self.getManager())
+            img = Image.fromFile(filename)
             proxy = server.register(img)
 
 
