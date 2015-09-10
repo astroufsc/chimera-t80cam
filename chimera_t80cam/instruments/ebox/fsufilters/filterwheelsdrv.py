@@ -1,39 +1,55 @@
 import logging
 import time
 
-from chimera.instruments.ebox.fsuconn import FSUConn
-from chimera.instruments.ebox.fsufwheels import FSUFWheels
+from chimera_t80cam.instruments.ebox.fsuconn import FSUConn
+from chimera_t80cam.instruments.ebox.fsufwheels import FSUFWheels
 
 
-log = logging.getLogger(name=__name__)
+log = logging.getLogger(name=__name__.replace('chimera_t80cam','chimera'))
 
+class FilterPositionFailure(Exception):
+    pass
 
 class FSUFilterWheel(FSUConn, FSUFWheels):
     """
     Solunia class to interface with the filter wheels component.
     """
 
-    def __init__(self):
-        FSUConn.__init__(self)
+    def __init__(self,fsu):
+        log.debug('Connecting to TwinCat server @ %s:%s'%(fsu['plc_ip_adr'],
+                                                          fsu['plc_ip_port']))
+        self.log = fsu.log
+        self.timeout = fsu['plc_timeout']
+        FSUConn.__init__(self,fsu)
         FSUFWheels.__init__(self)
         """
         Initialize object from Chimera.
         """
 
     def move_pos(self, filterpos):
-        # log.info('Requested filter position {0}'.format(filterpos))
+        self.log.debug('Requested filter position {0}'.format(filterpos))
+        self.log.debug('VREAD {0}'.format(self._vread1.read()))
         # Ensure the motion bit is set to zero
         if (self._vread1.read() & 1) != 0:
             self._vread1.write(self._vread1.read() ^ 1)
+        self.log.debug('VREAD {0}'.format(self._vread1.read()))
+
         # reset the stop movement request bit if set.
         if (self._vread1.read() & (1 << 5)) != 0:
             self._vread1.write(self._vread1.read() & ~(1 << 5))
         # Set the filter position vector
+        self.log.debug('Seeting filter position...')
         self._vread0.write(filterpos)
+        start_time = time.time()
         while self.get_req_pos() != filterpos:
+            self.log.debug('Filter position: %s/%s/%s'%(self.get_req_pos(), filterpos,self._vread0.read()))
+            if time.time()-start_time > self.timeout:
+                raise FilterPositionFailure("Could not set filter position.")
             time.sleep(0.1)
         # Move it
         self._vread1.write(self._vread1.read() ^ 1)
+        self.log.debug('VREAD1 {0}'.format(self._vread1.read()))
+
         return
 
     def fwheel_is_moving(self):

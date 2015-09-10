@@ -8,7 +8,7 @@ from chimera.core.lock import lock
 
 from chimera.instruments.filterwheel import FilterWheelBase
 
-from chimera.instruments.ebox.fsufilters.filterwheelsdrv import FSUFilterWheel
+from chimera_t80cam.instruments.ebox.fsufilters.filterwheelsdrv import FSUFilterWheel
 
 log = logging.Logger(__name__)
 
@@ -20,22 +20,40 @@ class FsuFilters(FilterWheelBase):
 
     __config__ = dict(
         filter_wheel_model="Solunia",
-        waitMoveStart=0.5
-    )
+        waitMoveStart=0.5,
+        plc_ams_id="5.18.26.30.1.1",
+        plc_ams_port=801,
+        plc_ip_adr="192.168.100.1",
+        plc_ip_port=48898,
+        pc_ams_id="5.18.26.31.1.1",
+        pc_ams_port=32788,
+        plc_timeout=5)
 
     def __init__(self):
         """Constructor."""
         FilterWheelBase.__init__(self)
         # Get me the filter wheel.
-        self.fwhl = FSUFilterWheel()
         self._abort = threading.Event()
-        print("Filter wheels acquired")
+        self.fwhl = None
+
+    def __start__(self):
+        self.open()
 
     def __stop__(self):
         self.stopWheel()
 
+    @lock
+    def open(self):
+        return self.connectTWC()
+
+    def connectTWC(self):
+        self.log.debug('Opening Filter Wheel')
+        self.fwhl = FSUFilterWheel(self)
+        self.log.debug('Current filter is: %s'%self.getFilter())
+        return True
+
     def stopWheel(self):
-        print('Abort requested')
+        self.log.debug('Abort requested')
         self._abort.set()
         self.fwhl.move_stop()
 
@@ -49,21 +67,26 @@ class FsuFilters(FilterWheelBase):
             name.
             :param str flt: Name of the filter to use.
         """
+        fwhl = self.fwhl
+
         self._abort.clear()
         print(self._getFilterPosition(flt))
         # Set wheels in motion.
-        self.fwhl.move_pos(self._getFilterPosition(flt))
+        fwhl.move_pos(self._getFilterPosition(flt))
         # This call returns immediately, hence loop for an abort request.
         time.sleep(self["waitMoveStart"])
         timeout = 0
-        while not (self.fwhl.fwheel_is_moving() and
-                       self.fwhl.awheel_is_moving()):
+        start_time = time.time()
+        while not (fwhl.fwheel_is_moving() and
+                       fwhl.awheel_is_moving()):
             time.sleep(0.1)
             if self._abort.isSet():
+                self.stopWheel()
                 break
-            if timeout > 250:
+            if time.time()-start_time > 25:
+                self.log.warning("Longer than 25s have passed; something is wrong...")
                 # Longer than 25s have passed; something is wrong...
-                self.fwhl.check_hw()
+                fwhl.check_hw()
 
     def getFilter(self):
         """
@@ -74,31 +97,5 @@ class FsuFilters(FilterWheelBase):
         :return: Current filter.
         :rtype: int.
         """
-        return self._getFilterName(self.fwhl.get_pos())
-
-    @event
-    def filterChange(self, newFilter, oldFilter):
-        """
-        Fired when the wheel changes the current filter.
-
-        @param newFilter: The new current filter.
-        @type  newFilter: str
-
-        @param oldFilter: The last filter.
-        @type  oldFilter: str
-        """
-
-    def getMetadata(self, request):
-        """
-        Return info for image headers.
-
-        .. method:: getMetadata(request)
-            Collects information to go into the image being exposed with the
-            current settings,
-            :param dict request: the image request passed down.
-            :return: list of tuples, key-value pairs.
-        """
-        # NOTE: "FWHEEL" is not in the header keywords list on
-        # UPAD-ICD-OAJ-9400-2 v. 9
-        return [("FWHEEL", self['filter_wheel_model'], 'Filter Wheel Model'),
-                ("FILTER", self.getFilter(), 'Filter for this observation')]
+        fwhl = self.fwhl
+        return self._getFilterName(fwhl.get_pos())

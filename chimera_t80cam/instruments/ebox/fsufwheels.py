@@ -16,7 +16,7 @@ class FSUFWheels():
         self._vread0 = ads_var_single(self.conn, '.wDWORD_READ[0]', 'i')
         # CAM filter wheel position request vector
         self._wPOS_REQ = ads_var_single(
-            self.conn, '.wPOSITIONING_REQUESTED_T80_POL_BOX_FILTER', 'i')
+            self.conn, '.wPOSITIONING_REQUESTED_T80_CAM_BOX', 'i')
         # CAM filter wheels stop motion request vector (bit)
         # self._bSTOP_REQ = ads_var_single(
         # self.conn, '.bSTOP_POSITIONING_REQUESTED_FILTERS_WHEEL', 'b')

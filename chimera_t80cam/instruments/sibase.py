@@ -130,6 +130,9 @@ class SIBase(CameraBase):
 
         :return:
         """
+        return self.connectSIClient()
+
+    def connectSIClient(self):
         self.log.debug("Connecting to SI Camera Server @ %s:%s" % (
             self["camera_host"], self["camera_port"]))
 
@@ -145,6 +148,9 @@ class SIBase(CameraBase):
     def close(self):
         self.client.disconnect()
 
+    def getClient(self):
+        return self.client
+
     @lock
     def get_config(self):
         """
@@ -154,7 +160,8 @@ class SIBase(CameraBase):
 
         """
         self.pars = []
-        lines = self.client.executeCommand(
+        client = self.getClient() #self.client
+        lines = client.executeCommand(
             GetCameraParameters()).parameterlist.splitlines()
         for i in range(len(lines)):
             self.pars += [re.split(',(.+),', lines[i])]
@@ -205,7 +212,8 @@ class SIBase(CameraBase):
             Generates an instance list of lists containing name,value,unit
              strings.
         """
-        lines = self.client.executeCommand(
+        client = self.getClient()
+        lines = client.executeCommand(
             GetStatusFromCamera()).statuslist.splitlines()
         self.stats = []
         for i in range(len(lines)):
@@ -217,7 +225,8 @@ class SIBase(CameraBase):
         Return the SGLII settings.
         :return:
         """
-        self.sgl2 = self.client.executeCommand(GetSIImageSGLIISettings())
+        client = self.getClient()
+        self.sgl2 = client.executeCommand(GetSIImageSGLIISettings())
 
     @lock
     def get_acq_modes(self):
@@ -225,13 +234,15 @@ class SIBase(CameraBase):
 
         :return:
         """
-        self.acqmodes = self.client.executeCommand(
+        client = self.getClient()
+        self.acqmodes = client.executeCommand(
             GetAcquisitionModes()).menuinfolist.splitlines()
 
     @lock
     def get_xml_files(self, thefile):
         # Get the main files list
-        xmlfiles = self.client.executeCommand(
+        client = self.getClient()
+        xmlfiles = client.executeCommand(
             GetCameraXMLFile('files.xml')).fileslist
 
         # flist = []
@@ -248,8 +259,9 @@ class SIBase(CameraBase):
     def startCooling(self, tempC):
         # TODO: works, doesn't return
         # send command
+        client = self.getClient()
         try:
-            ack = self.client.executeCommand(SetCooler(1))
+            ack = client.executeCommand(SetCooler(1))
         except AckException:
             return False
         else:
@@ -258,8 +270,9 @@ class SIBase(CameraBase):
     @lock
     def stopCooling(self):
         # send command
+        client = self.getClient()
         try:
-            ack = self.client.executeCommand(SetCooler(0))
+            ack = client.executeCommand(SetCooler(0))
         except AckException:
             return False
         else:
@@ -362,12 +375,13 @@ class SIBase(CameraBase):
     def _expose(self, imageRequest):
 
         shutterRequest = imageRequest['shutter']
+        client = self.getClient()
 
         if shutterRequest == Shutter.OPEN:
-            shutter = self.client.executeCommand(
+            shutter = client.executeCommand(
                 SetAcquisitionType(0))  # Light
         elif shutterRequest == Shutter.CLOSE:
-            shutter = self.client.executeCommand(SetAcquisitionType(1))  # Dark
+            shutter = client.executeCommand(SetAcquisitionType(1))  # Dark
         elif shutterRequest == Shutter.LEAVE_AS_IS:  # As it was
             pass
         else:
@@ -388,9 +402,9 @@ class SIBase(CameraBase):
                 #  self._getReadoutModeInfo(imageRequest["binning"],
                 # imageRequest["window"])
 
-        self.client.executeCommand(
+        client.executeCommand(
             SetAcquisitionMode(0))  # Chimera will always execute SINGLE FRAMES
-        self.client.executeCommand(SetExposureTime(imageRequest["exptime"]))
+        client.executeCommand(SetExposureTime(imageRequest["exptime"]))
         # self.client.executeCommand(SetNumberOfFrames(self["frames"]))
         # self.client.executeCommand(
         # SetCCDFormatParameters(0, 4096, srl_bin, 0, 4096, prl_bin))
@@ -407,23 +421,23 @@ class SIBase(CameraBase):
         self.exposeBegin(imageRequest)
 
         # send Acquire command
-        bytes_sent = self.client.sk.send(cmd_to_send.toStruct())
+        bytes_sent = client.sk.send(cmd_to_send.toStruct())
 
         # check acknowledge
-        ret = select.select([self.client.sk], [], [])
+        ret = select.select([client.sk], [], [])
         if not ret[0]:
             raise SIException('No answer from camera')
 
-        if ret[0][0] == self.client.sk:
+        if ret[0][0] == client.sk:
 
             header = Packet()
-            header_data = self.client.recv(len(header))
+            header_data = client.recv(len(header))
             header.fromStruct(header_data)
 
             if header.id == 129:
                 ack = Ack()
                 ack.fromStruct(
-                    header_data + self.client.recv(header.length - len(header)))
+                    header_data + client.recv(header.length - len(header)))
 
                 if not ack.accept:
                     raise AckException(
@@ -450,16 +464,19 @@ class SIBase(CameraBase):
 
     def abortExposure(self, readout=True):
         # Send temination to camera
-        self.client.executeCommand(TerminateAcquisition())
+        client = self.getClient()
+        client.executeCommand(TerminateAcquisition())
         # Readout
         # self._readout(imageRequest)
 
     def _isExposing(self):
-        status = self.client.executeCommand(InquireAcquisitionStatus())
+        client = self.getClient()
+        status = client.executeCommand(InquireAcquisitionStatus())
         return status.exp_done_percent < 100
 
     def _isReadingOut(self):
-        status = self.client.executeCommand(InquireAcquisitionStatus())
+        client = self.getClient()
+        status = client.executeCommand(InquireAcquisitionStatus())
         return status.readout_done_percent < 100
 
     def _readout(self, imageRequest):
@@ -469,38 +486,39 @@ class SIBase(CameraBase):
         # imgarray = N.zeros((4096, 4096), N.int32)
         #while not self.abort.isSet():
         status = CameraStatus.OK
+        client = self.getClient()
         if self.abort.isSet():
             status = CameraStatus.ABORTED
 
         self.abort.clear()
 
-        while self._isReadingOut():
-
-            if self.abort.isSet():
-                self.abortExposure(readout=False)
-                status = CameraStatus.ABORTED
-                break
+        # while self._isReadingOut():
+        #
+        #     if self.abort.isSet():
+        #         self.abortExposure(readout=False)
+        #         status = CameraStatus.ABORTED
+        #         break
 
         # Get orphan packet from Acquire command issue in _expose
         cmd = Acquire()
 
         while True:
 
-            ret = select.select([self.client.sk], [], [])
+            ret = select.select([client.sk], [], [])
 
             if not ret[0]:
                 break
 
-            if ret[0][0] == self.client.sk:
+            if ret[0][0] == client.sk:
 
                 header = Packet()
-                header_data = self.client.recv(len(header))
+                header_data = client.recv(len(header))
                 header.fromStruct(header_data)
 
                 if header.id == 131:  # incoming data pkt
                     data = cmd.result()  # data structure as defined in data.py
                     data.fromStruct(
-                        header_data + self.client.recv(header.length - len(header)))
+                        header_data + client.recv(header.length - len(header)))
                     #data.fromStruct (header_data + self.recv (header.length))
                     # logging.debug(data)
                     self.log.debug("data type is {}".format(data.data_type))
@@ -520,7 +538,7 @@ class SIBase(CameraBase):
         if not self["localhost"]:
             self.log.debug('Remote mode')
 
-            serial_length, parallel_length, img_buffer = self.client.executeCommand(
+            serial_length, parallel_length, img_buffer = client.executeCommand(
                 RetrieveImage(0))
 
             pix = N.array(img_buffer, dtype=N.uint16)
@@ -535,7 +553,7 @@ class SIBase(CameraBase):
             pix = pix.reshape(width, height)
             pix.byteswap(True)
 
-            header = self.client.executeCommand(GetImageHeader(1))
+            header = client.executeCommand(GetImageHeader(1))
 
             headers = self._processHeader(header)
 
@@ -555,7 +573,8 @@ class SIBase(CameraBase):
 
             # Need to do this in order to fix the image header
             hdu = pyfits.open(os.path.join(self["local_path"],
-                                              self["local_filename"]))
+                                              self["local_filename"]),
+                              scale_back=True)
 
             # pix += hdu[0].data
             badcards = ['PG0_38',
