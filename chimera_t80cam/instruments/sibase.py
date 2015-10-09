@@ -582,6 +582,9 @@ class SIBase(CameraBase):
                         'PG0_40',
                         'PG0_60',
                         'PG0_65']
+            ccd0temp = hdu[0]['PG0_40']
+            instrumentTemperature = hdu[0]['PG0_65']
+
             for card in badcards:
                 self.log.debug('Removing card "%s" from header'%card)
                 hdu[0].header.remove(card)
@@ -614,6 +617,23 @@ class SIBase(CameraBase):
                     except Exception, e:
                         log.warning("Couldn't add %s: %s" % (str(header), str(e)))
 
+            md = [
+                  # ('FILENAME', ImageUtil.makeFilename(request["filename"])),
+                  ('EXPTIME', float(hdu[0]['PG2_0']), "exposure time in seconds"),
+                  ('INSTRUME', str(self.instrument['camera_model']), 'Custom. Name of instrument'),
+                  ('HIERARCH T80S DET TEMP', ccd0temp, ' Chip temperature (C) '),]
+            #       ('IMAGETYP', request['type'].strip(), 'Custom. Image type'),
+            #       ('SHUTTER', str(request['shutter']), 'Custom. Requested shutter state'),
+            #
+            #       ('CCD',    str(self.instrument['ccd_model']), 'Custom. CCD Model'),
+            #       ('CCD_DIMX', self.instrument.getPhysicalSize()[0], 'Custom. CCD X Dimension Size'),
+            #       ('CCD_DIMY', self.instrument.getPhysicalSize()[1], 'Custom. CCD Y Dimension Size'),
+            #       ('CCDPXSZX', self.instrument.getPixelSize()[0], 'Custom. CCD X Pixel Size [micrometer]'),
+            #       ('CCDPXSZY', self.instrument.getPixelSize()[1], 'Custom. CCD Y Pixel Size [micrometer]')]
+            #
+                # md += [('HIERARCH T80S INS TEMP', extra_header_info["frame_temperature"],
+                #         'Instrument temperature (C) at end of exposure.')]
+
             (mode, binning, top, left,
             width, height) = self._getReadoutModeInfo(imageRequest["binning"],
                                                       imageRequest["window"])
@@ -634,14 +654,60 @@ class SIBase(CameraBase):
                 # Quick sheet: http://www.astro.iag.usp.br/~moser/notes/GAi_FITSimgs.html
                 # http://adsabs.harvard.edu/abs/2002A%26A...395.1061G
                 # http://adsabs.harvard.edu/abs/2002A%26A...395.1077C
-                wcs = [("CRPIX1", CRPIX1, "coordinate system reference pixel"),
+                md += [("CRPIX1", CRPIX1, "coordinate system reference pixel"),
                     ("CRPIX2", CRPIX2, "coordinate system reference pixel"),
                     ("CD1_1",  scale_x * N.cos(self["rotation"]*N.pi/180.), "transformation matrix element (1,1)"),
                     ("CD1_2", -scale_y * N.sin(self["rotation"]*N.pi/180.), "transformation matrix element (1,2)"),
                     ("CD2_1", scale_x * N.sin(self["rotation"]*N.pi/180.), "transformation matrix element (2,1)"),
                     ("CD2_2", scale_y * N.cos(self["rotation"]*N.pi/180.), "transformation matrix element (2,2)")]
-                for card in wcs:
-                    hdu[0].header.set(*card)
+
+
+            md += [ ('BUNIT', 'adu', 'physical units of the array values '),        #TODO:
+                    #('BLANK', -32768),        #TODO:
+                    #('BZERO', '0.0'),        #TODO:
+                    ('HIERARCH T80S INS OPER', 'CHIMERA'),
+                    ('HIERARCH T80S INS PIXSCALE', '%.3f'%(scale_x*3600.), 'Pixel scale (arcsec)'),
+                    ('HIERARCH OAJ INS TEMP', instrumentTemperature, 'Instrument temperature'),
+                    ('HIERARCH T80S DET NAME', hdu[0]['PG1_1'], 'Name of detector system '),
+                    ('HIERARCH T80S DET CCDS', ' 1 ', ' Number of CCDs in the mosaic'),        #TODO:
+                    ('HIERARCH T80S DET CHIPID', ' 0 ', ' Detector CCD identification'),        #TODO:
+                    ('HIERARCH T80S DET NX', hdu[0]['NAXIS1'], ' Number of pixels along X '),
+                    ('HIERARCH T80S DET NY', hdu[0]['NAXIS2'], ' Number of pixels along Y'),
+                    ('HIERARCH T80S DET PSZX', pix_w, ' Size of pixel in X (mu) '),
+                    ('HIERARCH T80S DET PSZY', pix_h, ' Size of pixel in Y (mu) '),
+                    ('HIERARCH T80S DET EXP TYPE', 'LIGHT', ' Type of exp as known to the CCD SW '),        #TODO:
+                    ('HIERARCH T80S DET READ MODE', 'SLOW', ' Readout method'),        #TODO:
+                    ('HIERARCH T80S DET READ SPEED', '1 MHz', ' Readout speed'),        #TODO:
+                    ('HIERARCH T80S DET READ CLOCK', 'DSI 68, High Gain, 1x1', ' Type of exp as known to the CCD SW'),        #TODO:
+                    ('HIERARCH T80S DET OUTPUTS', ' 2 ', 'Number of output ports used on chip'),        #TODO:
+                    ('HIERARCH T80S DET REQTIM', float(imageRequest['exptime']), 'Requested exposure time (sec)')]
+
+            for i_output in range(1, 17):
+                line = (i_output-1)%2
+                colum = (i_output-((i_output-1)%2)+1)/2
+
+                md += [
+                ('HIERARCH T80S DET OUT%i ID' % i_output, ' %2i '%(i_output-1), ' Identification for OUT1 readout port '),
+                ('HIERARCH T80S DET OUT%i X' % i_output, ' %i ' % (line*hdu[0]['PG5_5'] + 1), ' X location of output in the chip. (lower left pixel)'),        #TODO:
+                ('HIERARCH T80S DET OUT%i Y' % i_output, ' %i ' % (colum*hdu[0]['PG5_10'] + 1), ' Y location of output in the chip. (lower left pixel)'),        #TODO:
+                ('HIERARCH T80S DET OUT%i NX' % i_output, hdu[0]['PG5_5'],
+                 ' Number of image pixels read to port 1 in X. Not including pre or overscan'),
+                ('HIERARCH T80S DET OUT%i NY' % i_output, hdu[0]['PG5_10'],
+                 ' Number of image pixels read to port 1 in Y. Not including pre or overscan'),
+                ('HIERARCH T80S DET OUT%i IMSC' % i_output, ' [%i:%i,%i:%i] '%(line,line+hdu[0]['PG5_5'],
+                                                                               colum,colum+hdu[0]['PG5_10']),
+                 ' Image region for OUT%i in format [xmin:xmax,ymin:ymax] '),
+                ('HIERARCH T80S DET OUT%i PRSCX' % i_output, ''),
+                ('HIERARCH T80S DET OUT%i PRSCY' % i_output, ''),
+                ('HIERARCH T80S DET OUT%i OVSCX' % i_output, ''),
+                ('HIERARCH T80S DET OUT%i OVSCY' % i_output,''),
+                ('HIERARCH T80S DET OUT%i GAIN' % i_output, ' 1.12 ', ' Gain for output. Conversion from ADU to electron (e-/ADU)'),        #TODO:
+                ('HIERARCH T80S DET OUT%i RON' % i_output, ' 9.8900 ', ' Readout-noise of OUT1 at selected Gain (e-)'),        #TODO:
+                ('HIERARCH T80S DET OUT%i SATUR' % i_output, ' 100000.0 ', ' Saturation of OUT1 (e-)')        #TODO:
+                ]
+
+                # for card in wcs:
+                #     hdu[0].header.set(*card)
 
             chimeraCards = [('DATE-OBS',
                      ImageUtil.formatDate(
