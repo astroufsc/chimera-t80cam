@@ -738,7 +738,18 @@ class SIBase(CameraBase):
                     ('CCDPXSZY', self.getPixelSize()[1],
                      'CCD Y Pixel Size [micrometer]')]
 
+            telescope = self.getManager().getProxy(self['telescope'])
+
+            md += [ ('HIERARCH T80S TEL EL END', telescope.getAlt().toD().__str__()),
+                    ('HIERARCH T80S TEL AZ END', telescope.getAz().toD().__str__()),
+                    ('HIERARCH T80S TEL PARANG END', telescope.getParallacticAngle().toD().__str__(), ' Parallactic angle at end (deg) '),
+                    ('HIERARCH T80S TEL AIRM END',  1 / N.cos(N.pi / 2 - self.instrument.getAlt().R), ' Airmass at end of exposure'),
+                    ]
+
             for card in chimeraCards:
+                hdu[0].header.set(*card)
+
+            for card in md:
                 hdu[0].header.set(*card)
 
             self.log.debug('Writting new fits to disk')
