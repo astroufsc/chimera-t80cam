@@ -577,13 +577,14 @@ class SIBase(CameraBase):
                               scale_back=True)
 
             # pix += hdu[0].data
-            badcards = ['PG0_38',
-                        'PG0_39',
-                        'PG0_40',
-                        'PG0_60',
-                        'PG0_65']
-            ccd0temp = hdu[0]['PG0_40']
-            instrumentTemperature = hdu[0]['PG0_65']
+            # Todo: Move this to the configuration.
+            badcards = ['PG0_10',
+                        'PG0_15',
+                        'PG0_54',
+                        'PG0_55',
+                        'PG0_56']
+            ccd0temp = hdu[0].header['PG0_56']
+            instrumentTemperature = hdu[0].header['PG0_55']
 
             for card in badcards:
                 self.log.debug('Removing card "%s" from header'%card)
@@ -619,8 +620,8 @@ class SIBase(CameraBase):
 
             md = [
                   # ('FILENAME', ImageUtil.makeFilename(request["filename"])),
-                  ('EXPTIME', float(hdu[0]['PG2_0']), "exposure time in seconds"),
-                  ('INSTRUME', str(self.instrument['camera_model']), 'Custom. Name of instrument'),
+                  ('EXPTIME', float(hdu[0].header['PG2_0']), "exposure time in seconds"),
+                  ('INSTRUME', str(self['camera_model']), 'Custom. Name of instrument'),
                   ('HIERARCH T80S DET TEMP', ccd0temp, ' Chip temperature (C) '),]
             #       ('IMAGETYP', request['type'].strip(), 'Custom. Image type'),
             #       ('SHUTTER', str(request['shutter']), 'Custom. Requested shutter state'),
@@ -668,11 +669,11 @@ class SIBase(CameraBase):
                     ('HIERARCH T80S INS OPER', 'CHIMERA'),
                     ('HIERARCH T80S INS PIXSCALE', '%.3f'%(scale_x*3600.), 'Pixel scale (arcsec)'),
                     ('HIERARCH OAJ INS TEMP', instrumentTemperature, 'Instrument temperature'),
-                    ('HIERARCH T80S DET NAME', hdu[0]['PG1_1'], 'Name of detector system '),
+                    #('HIERARCH T80S DET NAME', hdu[0].header['PG1_1'], 'Name of detector system '),
                     ('HIERARCH T80S DET CCDS', ' 1 ', ' Number of CCDs in the mosaic'),        #TODO:
                     ('HIERARCH T80S DET CHIPID', ' 0 ', ' Detector CCD identification'),        #TODO:
-                    ('HIERARCH T80S DET NX', hdu[0]['NAXIS1'], ' Number of pixels along X '),
-                    ('HIERARCH T80S DET NY', hdu[0]['NAXIS2'], ' Number of pixels along Y'),
+                    ('HIERARCH T80S DET NX', hdu[0].header['NAXIS1'], ' Number of pixels along X '),
+                    ('HIERARCH T80S DET NY', hdu[0].header['NAXIS2'], ' Number of pixels along Y'),
                     ('HIERARCH T80S DET PSZX', pix_w, ' Size of pixel in X (mu) '),
                     ('HIERARCH T80S DET PSZY', pix_h, ' Size of pixel in Y (mu) '),
                     ('HIERARCH T80S DET EXP TYPE', 'LIGHT', ' Type of exp as known to the CCD SW '),        #TODO:
@@ -688,14 +689,14 @@ class SIBase(CameraBase):
 
                 md += [
                 ('HIERARCH T80S DET OUT%i ID' % i_output, ' %2i '%(i_output-1), ' Identification for OUT1 readout port '),
-                ('HIERARCH T80S DET OUT%i X' % i_output, ' %i ' % (line*hdu[0]['PG5_5'] + 1), ' X location of output in the chip. (lower left pixel)'),        #TODO:
-                ('HIERARCH T80S DET OUT%i Y' % i_output, ' %i ' % (colum*hdu[0]['PG5_10'] + 1), ' Y location of output in the chip. (lower left pixel)'),        #TODO:
-                ('HIERARCH T80S DET OUT%i NX' % i_output, hdu[0]['PG5_5'],
+                ('HIERARCH T80S DET OUT%i X' % i_output, ' %i ' % (line*hdu[0].header['PG5_5'] + 1), ' X location of output in the chip. (lower left pixel)'),        #TODO:
+                ('HIERARCH T80S DET OUT%i Y' % i_output, ' %i ' % (colum*hdu[0].header['PG5_10'] + 1), ' Y location of output in the chip. (lower left pixel)'),        #TODO:
+                ('HIERARCH T80S DET OUT%i NX' % i_output, hdu[0].header['PG5_5'],
                  ' Number of image pixels read to port 1 in X. Not including pre or overscan'),
-                ('HIERARCH T80S DET OUT%i NY' % i_output, hdu[0]['PG5_10'],
+                ('HIERARCH T80S DET OUT%i NY' % i_output, hdu[0].header['PG5_10'],
                  ' Number of image pixels read to port 1 in Y. Not including pre or overscan'),
-                ('HIERARCH T80S DET OUT%i IMSC' % i_output, ' [%i:%i,%i:%i] '%(line,line+hdu[0]['PG5_5'],
-                                                                               colum,colum+hdu[0]['PG5_10']),
+                ('HIERARCH T80S DET OUT%i IMSC' % i_output, ' [%i:%i,%i:%i] '%(line,line+hdu[0].header['PG5_5'],
+                                                                               colum,colum+hdu[0].header['PG5_10']),
                  ' Image region for OUT%i in format [xmin:xmax,ymin:ymax] '),
                 ('HIERARCH T80S DET OUT%i PRSCX' % i_output, ''),
                 ('HIERARCH T80S DET OUT%i PRSCY' % i_output, ''),
