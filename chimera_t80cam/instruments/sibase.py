@@ -56,7 +56,61 @@ class SIBase(CameraBase):
                   'camera_host': '127.0.0.1', 'camera_port': 2055,
                   'localhost': False,
                   "local_filename" : 'tmp.fits',
-                  "local_path" : '/tmp/'}
+                  "local_path" : '/tmp/',
+
+                  # ITEMS to be measured on the camera
+                  "OUT1_SATUR": "100000.0",  # Output 1 saturation level (e-)
+                  "OUT2_SATUR": "100000.0",  # Output 2 saturation level (e-)
+                  "OUT3_SATUR": "100000.0",  # Output 3 saturation level (e-)
+                  "OUT4_SATUR": "100000.0",  # Output 4 saturation level (e-)
+                  "OUT5_SATUR": "100000.0",  # Output 5 saturation level (e-)
+                  "OUT6_SATUR": "100000.0",  # Output 6 saturation level (e-)
+                  "OUT7_SATUR": "100000.0",  # Output 7 saturation level (e-)
+                  "OUT8_SATUR": "100000.0",  # Output 8 saturation level (e-)
+                  "OUT9_SATUR": "100000.0",  # Output 9 saturation level (e-)
+                  "OUT10_SATUR": "100000.0",  # Output 10 saturation level (e-)
+                  "OUT11_SATUR": "100000.0",  # Output 11 saturation level (e-)
+                  "OUT12_SATUR": "100000.0",  # Output 12 saturation level (e-)
+                  "OUT13_SATUR": "100000.0",  # Output 13 saturation level (e-)
+                  "OUT14_SATUR": "100000.0",  # Output 14 saturation level (e-)
+                  "OUT15_SATUR": "100000.0",  # Output 15 saturation level (e-)
+                  "OUT16_SATUR": "100000.0",  # Output 16 saturation level (e-)
+
+
+                  "OUT1_RON": "9.8900",  # Readout-noise of OUT1 at selected Gain (e-)
+                  "OUT2_RON": "9.8900",  # Readout-noise of OUT2 at selected Gain (e-)
+                  "OUT3_RON": "9.8900",  # Readout-noise of OUT3 at selected Gain (e-)
+                  "OUT4_RON": "9.8900",  # Readout-noise of OUT4 at selected Gain (e-)
+                  "OUT5_RON": "9.8900",  # Readout-noise of OUT5 at selected Gain (e-)
+                  "OUT6_RON": "9.8900",  # Readout-noise of OUT6 at selected Gain (e-)
+                  "OUT7_RON": "9.8900",  # Readout-noise of OUT7 at selected Gain (e-)
+                  "OUT8_RON": "9.8900",  # Readout-noise of OUT8 at selected Gain (e-)
+                  "OUT9_RON": "9.8900",  # Readout-noise of OUT9 at selected Gain (e-)
+                  "OUT10_RON": "9.8900",  # Readout-noise of OUT10 at selected Gain (e-)
+                  "OUT11_RON": "9.8900",  # Readout-noise of OUT11 at selected Gain (e-)
+                  "OUT12_RON": "9.8900",  # Readout-noise of OUT12 at selected Gain (e-)
+                  "OUT13_RON": "9.8900",  # Readout-noise of OUT13 at selected Gain (e-)
+                  "OUT14_RON": "9.8900",  # Readout-noise of OUT14 at selected Gain (e-)
+                  "OUT15_RON": "9.8900",  # Readout-noise of OUT15 at selected Gain (e-)
+                  "OUT16_RON": "9.8900",  # Readout-noise of OUT16 at selected Gain (e-)
+
+                  "OUT1_GAIN": "1.12",  # Gain for output 1. Conversion from ADU to electron (e-/ADU)
+                  "OUT2_GAIN": "1.12",  # Gain for output 2. Conversion from ADU to electron (e-/ADU)
+                  "OUT3_GAIN": "1.12",  # Gain for output 3. Conversion from ADU to electron (e-/ADU)
+                  "OUT4_GAIN": "1.12",  # Gain for output 4. Conversion from ADU to electron (e-/ADU)
+                  "OUT5_GAIN": "1.12",  # Gain for output 5. Conversion from ADU to electron (e-/ADU)
+                  "OUT6_GAIN": "1.12",  # Gain for output 6. Conversion from ADU to electron (e-/ADU)
+                  "OUT7_GAIN": "1.12",  # Gain for output 7. Conversion from ADU to electron (e-/ADU)
+                  "OUT8_GAIN": "1.12",  # Gain for output 8. Conversion from ADU to electron (e-/ADU)
+                  "OUT9_GAIN": "1.12",  # Gain for output 9. Conversion from ADU to electron (e-/ADU)
+                  "OUT10_GAIN": "1.12",  # Gain for output 10. Conversion from ADU to electron (e-/ADU)
+                  "OUT11_GAIN": "1.12",  # Gain for output 11. Conversion from ADU to electron (e-/ADU)
+                  "OUT12_GAIN": "1.12",  # Gain for output 12. Conversion from ADU to electron (e-/ADU)
+                  "OUT13_GAIN": "1.12",  # Gain for output 13. Conversion from ADU to electron (e-/ADU)
+                  "OUT14_GAIN": "1.12",  # Gain for output 14. Conversion from ADU to electron (e-/ADU)
+                  "OUT15_GAIN": "1.12",  # Gain for output 15. Conversion from ADU to electron (e-/ADU)
+                  "OUT16_GAIN": "1.12",  # Gain for output 16. Conversion from ADU to electron (e-/ADU)
+                  }
 
     def __init__(self):
         CameraBase.__init__(self)
@@ -440,11 +494,9 @@ class SIBase(CameraBase):
                     header_data + client.recv(header.length - len(header)))
 
                 if not ack.accept:
-                    raise AckException(
-                        "Camera did not accepted command...")
+                    raise AckException("Camera did not accepted command...")
             else:
-                raise AckException(
-                        "No acknowledge received from camera...")
+                raise AckException("No acknowledge received from camera...")
 
         self.abort.clear()
 
@@ -608,8 +660,8 @@ class SIBase(CameraBase):
 
             self.log.debug('Adding header information')
 
-            hdu[0].header.set("DATE", ImageUtil.formatDate(dt.datetime.utcnow()), "date of file creation")
-            hdu[0].header.set("AUTHOR", _chimera_name_, _chimera_long_description_)
+            # hdu[0].header.set("DATE", ImageUtil.formatDate(dt.datetime.utcnow()), "date of file creation")
+            # hdu[0].header.set("AUTHOR", _chimera_name_, _chimera_long_description_)
 
             if imageRequest:
                 for header in imageRequest.headers:
@@ -618,8 +670,9 @@ class SIBase(CameraBase):
                     except Exception, e:
                         log.warning("Couldn't add %s: %s" % (str(header), str(e)))
 
-            md = [
-                  # ('FILENAME', ImageUtil.makeFilename(request["filename"])),
+            md = [('FILENAME', ImageUtil.makeFilename(imageRequest["filename"])),
+                  ("DATE", ImageUtil.formatDate(dt.datetime.utcnow()), "date of file creation"),
+                  ("AUTHOR", _chimera_name_, _chimera_long_description_),
                   ('EXPTIME', float(hdu[0].header['PG2_0']), "exposure time in seconds"),
                   ('INSTRUME', str(self['camera_model']), 'Custom. Name of instrument'),
                   ('HIERARCH T80S DET TEMP', ccd0temp, ' Chip temperature (C) '),]
@@ -669,7 +722,7 @@ class SIBase(CameraBase):
                     ('HIERARCH T80S INS OPER', 'CHIMERA'),
                     ('HIERARCH T80S INS PIXSCALE', '%.3f'%(scale_x*3600.), 'Pixel scale (arcsec)'),
                     ('HIERARCH OAJ INS TEMP', instrumentTemperature, 'Instrument temperature'),
-                    #('HIERARCH T80S DET NAME', hdu[0].header['PG1_1'], 'Name of detector system '),
+                    ('HIERARCH T80S DET NAME', hdu[0].header['PG1_1'], 'Name of detector system '),
                     ('HIERARCH T80S DET CCDS', ' 1 ', ' Number of CCDs in the mosaic'),        #TODO:
                     ('HIERARCH T80S DET CHIPID', ' 0 ', ' Detector CCD identification'),        #TODO:
                     ('HIERARCH T80S DET NX', hdu[0].header['NAXIS1'], ' Number of pixels along X '),
@@ -702,21 +755,17 @@ class SIBase(CameraBase):
                 ('HIERARCH T80S DET OUT%i PRSCY' % i_output, ''),
                 ('HIERARCH T80S DET OUT%i OVSCX' % i_output, ''),
                 ('HIERARCH T80S DET OUT%i OVSCY' % i_output,''),
-                ('HIERARCH T80S DET OUT%i GAIN' % i_output, ' 1.12 ', ' Gain for output. Conversion from ADU to electron (e-/ADU)'),        #TODO:
-                ('HIERARCH T80S DET OUT%i RON' % i_output, ' 9.8900 ', ' Readout-noise of OUT1 at selected Gain (e-)'),        #TODO:
-                ('HIERARCH T80S DET OUT%i SATUR' % i_output, ' 100000.0 ', ' Saturation of OUT1 (e-)')        #TODO:
+                ('HIERARCH T80S DET OUT%i GAIN' % i_output, self["OUT%i_GAIN" % i_output], ' Gain for output. Conversion from ADU to electron (e-/ADU)'),        #TODO:
+                ('HIERARCH T80S DET OUT%i RON' % i_output, self["OUT%i_RON" % i_output], ' Readout-noise of OUT%i at selected Gain (e-)' % i_output),
+                ('HIERARCH T80S DET OUT%i SATUR' % i_output, self["OUT%i_SATUR" % i_output], ' Saturation of OUT%i (e-)' % i_output)
                 ]
 
                 # for card in wcs:
                 #     hdu[0].header.set(*card)
 
-            chimeraCards = [('DATE-OBS',
-                     ImageUtil.formatDate(
-                         self.__lastFrameStart),
-                     'Date exposure started'),
+            chimeraCards = [('DATE-OBS', ImageUtil.formatDate(self.__lastFrameStart),'Date exposure started'),
 
-                    ('CCD-TEMP', self.getTemperature(),
-                     'CCD Temperature at Exposure Start [deg. C]'),
+                    ('CCD-TEMP', self.getTemperature(), 'CCD Temperature at Exposure Start [deg. C]'),
 
                     ("EXPTIME", float(imageRequest['exptime']) or 0.,
                      "exposure time in seconds"),
@@ -738,13 +787,13 @@ class SIBase(CameraBase):
                     ('CCDPXSZY', self.getPixelSize()[1],
                      'CCD Y Pixel Size [micrometer]')]
 
-            telescope = self.getManager().getProxy(self['telescope'])
-
-            md += [ ('HIERARCH T80S TEL EL END', telescope.getAlt().toD().__str__()),
-                    ('HIERARCH T80S TEL AZ END', telescope.getAz().toD().__str__()),
-                    ('HIERARCH T80S TEL PARANG END', telescope.getParallacticAngle().toD().__str__(), ' Parallactic angle at end (deg) '),
-                    ('HIERARCH T80S TEL AIRM END',  1 / N.cos(N.pi / 2 - self.instrument.getAlt().R), ' Airmass at end of exposure'),
-                    ]
+            # telescope = self.getManager().getProxy(self['telescope'])
+            #
+            # md += [ ('HIERARCH T80S TEL EL END', telescope.getAlt().toD().__str__()),
+            #         ('HIERARCH T80S TEL AZ END', telescope.getAz().toD().__str__()),
+            #         ('HIERARCH T80S TEL PARANG END', telescope.getParallacticAngle().toD().__str__(), ' Parallactic angle at end (deg) '),
+            #         ('HIERARCH T80S TEL AIRM END',  1 / N.cos(N.pi / 2 - self.instrument.getAlt().R), ' Airmass at end of exposure'),
+            #         ]
 
             for card in chimeraCards:
                 hdu[0].header.set(*card)
@@ -753,7 +802,7 @@ class SIBase(CameraBase):
                 hdu[0].header.set(*card)
 
             self.log.debug('Writting new fits to disk')
-            hdu.writeto(filename,output_verify='silentfix+warn')
+            hdu.writeto(filename,output_verify='silentfix+warn', checksum=True)
             hdu.close()
             self.log.debug('Registering image and creating proxy')
             # register image on ImageServer
