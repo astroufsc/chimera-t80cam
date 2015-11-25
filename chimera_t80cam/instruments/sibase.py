@@ -2,6 +2,7 @@
 import os
 import re
 import logging
+import threading
 
 import numpy as N
 from astropy.io.fits import Header
@@ -57,6 +58,10 @@ class SIBase(CameraBase):
                   'localhost': False,
                   "local_filename" : 'tmp.fits',
                   "local_path" : '/tmp/',
+                  "bad_cards" : "PG0_10,PG0_15,PG0_54,PG0_55,PG0_56",
+                  "ccdtemp" : 'PG0_56',
+                  "instrumentTemperature" : 'PG0_55',
+                  "exptime" : 'PG2_0',
 
                   # ITEMS to be measured on the camera
                   "OUT1_SATUR": "100000.0",  # Output 1 saturation level (e-)
@@ -161,6 +166,8 @@ class SIBase(CameraBase):
 
         self.imghdr = Header()
 
+        self._threadList = []
+
     def __start__(self):
         self.open()
         self.log.info("retrieving information from camera...")
@@ -177,6 +184,13 @@ class SIBase(CameraBase):
         except SIException:
             pass
 
+    def control(self):
+
+        for i in range(len(self._threadList)-1,-1,-1):
+            if not self._threadList[i].isAlive():
+                self._threadList.pop(i)
+
+
     @lock
     def open(self):
         """
@@ -184,6 +198,8 @@ class SIBase(CameraBase):
 
         :return:
         """
+        self.setHz(0.1)
+
         return self.connectSIClient()
 
     def connectSIClient(self):
@@ -620,32 +636,6 @@ class SIBase(CameraBase):
             self.log.debug('Local mode. Saving file to %s'%(os.path.join(self["local_path"],self["local_filename"])))
             # Save the image to the local disk and read them instead. Should be much faster.
             # Todo: Get rid of "local_path" and "local_filename" and use temporary files
-            self.client.executeCommand(SetSaveToFolderPath(self["local_path"]))
-            self.client.executeCommand(SaveImage(self["local_filename"],'I16'))
-
-            # Need to do this in order to fix the image header
-            hdu = pyfits.open(os.path.join(self["local_path"],
-                                              self["local_filename"]),
-                              scale_back=True)
-
-            # pix += hdu[0].data
-            # Todo: Move this to the configuration.
-            badcards = ['PG0_10',
-                        'PG0_15',
-                        'PG0_54',
-                        'PG0_55',
-                        'PG0_56']
-            ccd0temp = hdu[0].header['PG0_56']
-            instrumentTemperature = hdu[0].header['PG0_55']
-
-            for card in badcards:
-                self.log.debug('Removing card "%s" from header'%card)
-                hdu[0].header.remove(card)
-
-            # hdu[0].verify('silentfix+warn')
-
-            # headers = dict(hdu[0].header)
-
             filename = ''
 
             if imageRequest:
@@ -656,176 +646,188 @@ class SIBase(CameraBase):
                         raise TypeError("Invalid filename, you must pass filename=something"
                                         "or a valid ImageRequest object")
 
-            filename = ImageUtil.makeFilename(filename)
+            path,filename = os.path.split(ImageUtil.makeFilename(filename))
 
-            self.log.debug('Adding header information')
-
-            # hdu[0].header.set("DATE", ImageUtil.formatDate(dt.datetime.utcnow()), "date of file creation")
-            # hdu[0].header.set("AUTHOR", _chimera_name_, _chimera_long_description_)
-
-            if imageRequest:
-                for header in imageRequest.headers:
-                    try:
-                        hdu[0].header.set(*header)
-                    except Exception, e:
-                        log.warning("Couldn't add %s: %s" % (str(header), str(e)))
-
-            md = [('FILENAME', ImageUtil.makeFilename(imageRequest["filename"])),
-                  ("DATE", ImageUtil.formatDate(dt.datetime.utcnow()), "date of file creation"),
-                  ("AUTHOR", _chimera_name_, _chimera_long_description_),
-                  ('EXPTIME', float(hdu[0].header['PG2_0']), "exposure time in seconds"),
-                  ('INSTRUME', str(self['camera_model']), 'Custom. Name of instrument'),
-                  ('HIERARCH T80S DET TEMP', ccd0temp, ' Chip temperature (C) '),]
-            #       ('IMAGETYP', request['type'].strip(), 'Custom. Image type'),
-            #       ('SHUTTER', str(request['shutter']), 'Custom. Requested shutter state'),
-            #
-            #       ('CCD',    str(self.instrument['ccd_model']), 'Custom. CCD Model'),
-            #       ('CCD_DIMX', self.instrument.getPhysicalSize()[0], 'Custom. CCD X Dimension Size'),
-            #       ('CCD_DIMY', self.instrument.getPhysicalSize()[1], 'Custom. CCD Y Dimension Size'),
-            #       ('CCDPXSZX', self.instrument.getPixelSize()[0], 'Custom. CCD X Pixel Size [micrometer]'),
-            #       ('CCDPXSZY', self.instrument.getPixelSize()[1], 'Custom. CCD Y Pixel Size [micrometer]')]
-            #
-                # md += [('HIERARCH T80S INS TEMP', extra_header_info["frame_temperature"],
-                #         'Instrument temperature (C) at end of exposure.')]
-
-            (mode, binning, top, left,
-            width, height) = self._getReadoutModeInfo(imageRequest["binning"],
-                                                      imageRequest["window"])
-            binFactor = self._binning_factors[binning]
-            pix_w, pix_h = self.getPixelSize()
-
-            if self["telescope_focal_length"] is not None:  # If there is no telescope_focal_length defined, don't store WCS
-                focal_length = self["telescope_focal_length"]
-
-                scale_x = binFactor * (((180 / N.pi) / focal_length) * (pix_w * 0.001))
-                scale_y = binFactor * (((180 / N.pi) / focal_length) * (pix_h * 0.001))
-
-                full_width, full_height = self.getPhysicalSize()
-                CRPIX1 = ((int(full_width / 2.0)) - left) - 1
-                CRPIX2 = ((int(full_height / 2.0)) - top) - 1
-
-                # Adding WCS coordinates according to FITS standard.
-                # Quick sheet: http://www.astro.iag.usp.br/~moser/notes/GAi_FITSimgs.html
-                # http://adsabs.harvard.edu/abs/2002A%26A...395.1061G
-                # http://adsabs.harvard.edu/abs/2002A%26A...395.1077C
-                md += [("CRPIX1", CRPIX1, "coordinate system reference pixel"),
-                    ("CRPIX2", CRPIX2, "coordinate system reference pixel"),
-                    ("CD1_1",  scale_x * N.cos(self["rotation"]*N.pi/180.), "transformation matrix element (1,1)"),
-                    ("CD1_2", -scale_y * N.sin(self["rotation"]*N.pi/180.), "transformation matrix element (1,2)"),
-                    ("CD2_1", scale_x * N.sin(self["rotation"]*N.pi/180.), "transformation matrix element (2,1)"),
-                    ("CD2_2", scale_y * N.cos(self["rotation"]*N.pi/180.), "transformation matrix element (2,2)")]
-
-
-            md += [ ('BUNIT', 'adu', 'physical units of the array values '),        #TODO:
-                    #('BLANK', -32768),        #TODO:
-                    #('BZERO', '0.0'),        #TODO:
-                    ('HIERARCH T80S INS OPER', 'CHIMERA'),
-                    ('HIERARCH T80S INS PIXSCALE', '%.3f'%(scale_x*3600.), 'Pixel scale (arcsec)'),
-                    ('HIERARCH OAJ INS TEMP', instrumentTemperature, 'Instrument temperature'),
-                    ('HIERARCH T80S DET NAME', hdu[0].header['PG1_1'], 'Name of detector system '),
-                    ('HIERARCH T80S DET CCDS', ' 1 ', ' Number of CCDs in the mosaic'),        #TODO:
-                    ('HIERARCH T80S DET CHIPID', ' 0 ', ' Detector CCD identification'),        #TODO:
-                    ('HIERARCH T80S DET NX', hdu[0].header['NAXIS1'], ' Number of pixels along X '),
-                    ('HIERARCH T80S DET NY', hdu[0].header['NAXIS2'], ' Number of pixels along Y'),
-                    ('HIERARCH T80S DET PSZX', pix_w, ' Size of pixel in X (mu) '),
-                    ('HIERARCH T80S DET PSZY', pix_h, ' Size of pixel in Y (mu) '),
-                    ('HIERARCH T80S DET EXP TYPE', 'LIGHT', ' Type of exp as known to the CCD SW '),        #TODO:
-                    ('HIERARCH T80S DET READ MODE', 'SLOW', ' Readout method'),        #TODO:
-                    ('HIERARCH T80S DET READ SPEED', '1 MHz', ' Readout speed'),        #TODO:
-                    ('HIERARCH T80S DET READ CLOCK', 'DSI 68, High Gain, 1x1', ' Type of exp as known to the CCD SW'),        #TODO:
-                    ('HIERARCH T80S DET OUTPUTS', ' 2 ', 'Number of output ports used on chip'),        #TODO:
-                    ('HIERARCH T80S DET REQTIM', float(imageRequest['exptime']), 'Requested exposure time (sec)')]
-
-            for i_output in range(1, 17):
-                line = (i_output-1)%2
-                colum = (i_output-((i_output-1)%2)+1)/2
-
-                md += [
-                ('HIERARCH T80S DET OUT%i ID' % i_output, ' %2i '%(i_output-1), ' Identification for OUT1 readout port '),
-                ('HIERARCH T80S DET OUT%i X' % i_output, ' %i ' % (line*hdu[0].header['PG5_5'] + 1), ' X location of output in the chip. (lower left pixel)'),        #TODO:
-                ('HIERARCH T80S DET OUT%i Y' % i_output, ' %i ' % (colum*hdu[0].header['PG5_10'] + 1), ' Y location of output in the chip. (lower left pixel)'),        #TODO:
-                ('HIERARCH T80S DET OUT%i NX' % i_output, hdu[0].header['PG5_5'],
-                 ' Number of image pixels read to port 1 in X. Not including pre or overscan'),
-                ('HIERARCH T80S DET OUT%i NY' % i_output, hdu[0].header['PG5_10'],
-                 ' Number of image pixels read to port 1 in Y. Not including pre or overscan'),
-                ('HIERARCH T80S DET OUT%i IMSC' % i_output, ' [%i:%i,%i:%i] '%(line,line+hdu[0].header['PG5_5'],
-                                                                               colum,colum+hdu[0].header['PG5_10']),
-                 ' Image region for OUT%i in format [xmin:xmax,ymin:ymax] '),
-                ('HIERARCH T80S DET OUT%i PRSCX' % i_output, ''),
-                ('HIERARCH T80S DET OUT%i PRSCY' % i_output, ''),
-                ('HIERARCH T80S DET OUT%i OVSCX' % i_output, ''),
-                ('HIERARCH T80S DET OUT%i OVSCY' % i_output,''),
-                ('HIERARCH T80S DET OUT%i GAIN' % i_output, self["OUT%i_GAIN" % i_output], ' Gain for output. Conversion from ADU to electron (e-/ADU)'),        #TODO:
-                ('HIERARCH T80S DET OUT%i RON' % i_output, self["OUT%i_RON" % i_output], ' Readout-noise of OUT%i at selected Gain (e-)' % i_output),
-                ('HIERARCH T80S DET OUT%i SATUR' % i_output, self["OUT%i_SATUR" % i_output], ' Saturation of OUT%i (e-)' % i_output)
-                ]
-
-                # for card in wcs:
-                #     hdu[0].header.set(*card)
-
-            chimeraCards = [('DATE-OBS', ImageUtil.formatDate(self.__lastFrameStart),'Date exposure started'),
-
-                    ('CCD-TEMP', self.getTemperature(), 'CCD Temperature at Exposure Start [deg. C]'),
-
-                    ("EXPTIME", float(imageRequest['exptime']) or 0.,
-                     "exposure time in seconds"),
-
-                    ('IMAGETYP', imageRequest['type'].strip(),
-                     'Image type'),
-
-                    ('SHUTTER', str(imageRequest['shutter']),
-                     'Requested shutter state'),
-
-                    ('INSTRUME', str(self['camera_model']), 'Name of instrument'),
-                    ('CCD',    str(self['ccd_model']), 'CCD Model'),
-                    ('CCD_DIMX', self.getPhysicalSize()
-                     [0], 'CCD X Dimension Size'),
-                    ('CCD_DIMY', self.getPhysicalSize()
-                     [1], 'CCD Y Dimension Size'),
-                    ('CCDPXSZX', self.getPixelSize()[0],
-                     'CCD X Pixel Size [micrometer]'),
-                    ('CCDPXSZY', self.getPixelSize()[1],
-                     'CCD Y Pixel Size [micrometer]')]
-
-            # telescope = self.getManager().getProxy(self['telescope'])
-            #
-            # md += [ ('HIERARCH T80S TEL EL END', telescope.getAlt().toD().__str__()),
-            #         ('HIERARCH T80S TEL AZ END', telescope.getAz().toD().__str__()),
-            #         ('HIERARCH T80S TEL PARANG END', telescope.getParallacticAngle().toD().__str__(), ' Parallactic angle at end (deg) '),
-            #         ('HIERARCH T80S TEL AIRM END',  1 / N.cos(N.pi / 2 - self.instrument.getAlt().R), ' Airmass at end of exposure'),
-            #         ]
-
-            for card in chimeraCards:
-                hdu[0].header.set(*card)
-
-            for card in md:
-                hdu[0].header.set(*card)
-
-            self.log.debug('Writting new fits to disk')
-            hdu.writeto(filename,output_verify='silentfix+warn', checksum=True)
-            hdu.close()
+            self.client.executeCommand(SetSaveToFolderPath(path))
+            self.client.executeCommand(SaveImage(filename,'I16'))
+            # From now on camera is ready to take new exposures, will return and move this to a different thread.
             self.log.debug('Registering image and creating proxy')
             # register image on ImageServer
             server = getImageServer(self.getManager())
             img = Image.fromFile(filename)
             proxy = server.register(img)
-
-
-        # I'll skip a call to saveImage and do all its work in here. A call to it was introducing a big overhead given
-        # the large size of the data on our camera.
-        # proxy = self._saveImage(
-        #     imageRequest, pix, headers)
-        self.log.debug('Readout complete')
-
-        # # [ABORT POINT]
-        # if self.abort.isSet():
-        #     self.readoutComplete(None, CameraStatus.ABORTED)
-        #     return None
+            p = threading.Thread(target=self._finishHeader,args=(imageRequest,self.__lastFrameStart,filename))
+            self._threadList.append(p)
+            p.start()
 
         self.readoutComplete(proxy, CameraStatus.OK)
         return proxy
 
         # return
+
+    def _finishHeader(self, imageRequest, frameStart, filename):
+
+        self.log.debug('Adding header information')
+
+        hdu = pyfits.open(filename,
+                          scale_back=True)
+
+        badcards = self["badcards"].split(',')
+        ccd0temp = hdu[0].header[self["ccdtemp"]]
+        instrumentTemperature = hdu[0].header[self['instrumentTemperature']]
+
+        for card in badcards:
+            self.log.debug('Removing card "%s" from header' % card)
+            hdu[0].header.remove(card)
+
+        if imageRequest:
+            for header in imageRequest.headers:
+                try:
+                    hdu[0].header.set(*header)
+                except Exception, e:
+                    log.warning("Couldn't add %s: %s" % (str(header), str(e)))
+
+        md = [('FILENAME', ImageUtil.makeFilename(imageRequest["filename"])),
+              ("DATE", ImageUtil.formatDate(dt.datetime.utcnow()), "date of file creation"),
+              ("AUTHOR", _chimera_name_, _chimera_long_description_),
+              ('HIERARCH T80S DET EXPTIME', float(hdu[0].header[self['exptime']]), "exposure time in seconds"),
+              ('INSTRUME', str(self['camera_model']), 'Custom. Name of instrument'),
+              ('HIERARCH T80S DET TEMP', ccd0temp, ' Chip temperature (C) '),]
+        #       ('IMAGETYP', request['type'].strip(), 'Custom. Image type'),
+        #       ('SHUTTER', str(request['shutter']), 'Custom. Requested shutter state'),
+        #
+        #       ('CCD',    str(self.instrument['ccd_model']), 'Custom. CCD Model'),
+        #       ('CCD_DIMX', self.instrument.getPhysicalSize()[0], 'Custom. CCD X Dimension Size'),
+        #       ('CCD_DIMY', self.instrument.getPhysicalSize()[1], 'Custom. CCD Y Dimension Size'),
+        #       ('CCDPXSZX', self.instrument.getPixelSize()[0], 'Custom. CCD X Pixel Size [micrometer]'),
+        #       ('CCDPXSZY', self.instrument.getPixelSize()[1], 'Custom. CCD Y Pixel Size [micrometer]')]
+        #
+            # md += [('HIERARCH T80S INS TEMP', extra_header_info["frame_temperature"],
+            #         'Instrument temperature (C) at end of exposure.')]
+
+        (mode, binning, top, left,
+        width, height) = self._getReadoutModeInfo(imageRequest["binning"],
+                                                  imageRequest["window"])
+        binFactor = self._binning_factors[binning]
+        pix_w, pix_h = self.getPixelSize()
+
+        if self["telescope_focal_length"] is not None:  # If there is no telescope_focal_length defined, don't store WCS
+            focal_length = self["telescope_focal_length"]
+
+            scale_x = binFactor * (((180 / N.pi) / focal_length) * (pix_w * 0.001))
+            scale_y = binFactor * (((180 / N.pi) / focal_length) * (pix_h * 0.001))
+
+            full_width, full_height = self.getPhysicalSize()
+            CRPIX1 = ((int(full_width / 2.0)) - left) - 1
+            CRPIX2 = ((int(full_height / 2.0)) - top) - 1
+
+            # Adding WCS coordinates according to FITS standard.
+            # Quick sheet: http://www.astro.iag.usp.br/~moser/notes/GAi_FITSimgs.html
+            # http://adsabs.harvard.edu/abs/2002A%26A...395.1061G
+            # http://adsabs.harvard.edu/abs/2002A%26A...395.1077C
+            md += [("CRPIX1", CRPIX1, "coordinate system reference pixel"),
+                ("CRPIX2", CRPIX2, "coordinate system reference pixel"),
+                ("CD1_1",  scale_x * N.cos(self["rotation"]*N.pi/180.), "transformation matrix element (1,1)"),
+                ("CD1_2", -scale_y * N.sin(self["rotation"]*N.pi/180.), "transformation matrix element (1,2)"),
+                ("CD2_1", scale_x * N.sin(self["rotation"]*N.pi/180.), "transformation matrix element (2,1)"),
+                ("CD2_2", scale_y * N.cos(self["rotation"]*N.pi/180.), "transformation matrix element (2,2)")]
+
+
+        md += [ ('BUNIT', 'adu', 'physical units of the array values '),        #TODO:
+                #('BLANK', -32768),        #TODO:
+                #('BZERO', '0.0'),        #TODO:
+                ('HIERARCH T80S INS OPER', 'CHIMERA'),
+                ('HIERARCH T80S INS PIXSCALE', '%.3f'%(scale_x*3600.), 'Pixel scale (arcsec)'),
+                ('HIERARCH OAJ INS TEMP', instrumentTemperature, 'Instrument temperature'),
+                ('HIERARCH T80S DET NAME', hdu[0].header['PG1_1'], 'Name of detector system '),
+                ('HIERARCH T80S DET CCDS', ' 1 ', ' Number of CCDs in the mosaic'),        #TODO:
+                ('HIERARCH T80S DET CHIPID', ' 0 ', ' Detector CCD identification'),        #TODO:
+                ('HIERARCH T80S DET NX', hdu[0].header['NAXIS1'], ' Number of pixels along X '),
+                ('HIERARCH T80S DET NY', hdu[0].header['NAXIS2'], ' Number of pixels along Y'),
+                ('HIERARCH T80S DET PSZX', pix_w, ' Size of pixel in X (mu) '),
+                ('HIERARCH T80S DET PSZY', pix_h, ' Size of pixel in Y (mu) '),
+                ('HIERARCH T80S DET EXP TYPE', 'LIGHT', ' Type of exp as known to the CCD SW '),        #TODO:
+                ('HIERARCH T80S DET READ MODE', 'SLOW', ' Readout method'),        #TODO:
+                ('HIERARCH T80S DET READ SPEED', '1 MHz', ' Readout speed'),        #TODO:
+                ('HIERARCH T80S DET READ CLOCK', 'DSI 68, High Gain, 1x1', ' Type of exp as known to the CCD SW'),        #TODO:
+                ('HIERARCH T80S DET OUTPUTS', ' 2 ', 'Number of output ports used on chip'),        #TODO:
+                ('HIERARCH T80S DET REQTIM', float(imageRequest['exptime']), 'Requested exposure time (sec)')]
+
+        for i_output in range(1, 17):
+            line = (i_output-1)%2
+            colum = (i_output-((i_output-1)%2)+1)/2
+
+            md += [
+            ('HIERARCH T80S DET OUT%i ID' % i_output, ' %2i '%(i_output-1), ' Identification for OUT1 readout port '),
+            ('HIERARCH T80S DET OUT%i X' % i_output, ' %i ' % (line*hdu[0].header['PG5_5'] + 1), ' X location of output in the chip. (lower left pixel)'),        #TODO:
+            ('HIERARCH T80S DET OUT%i Y' % i_output, ' %i ' % (colum*hdu[0].header['PG5_10'] + 1), ' Y location of output in the chip. (lower left pixel)'),        #TODO:
+            ('HIERARCH T80S DET OUT%i NX' % i_output, hdu[0].header['PG5_5'],
+             ' Number of image pixels read to port 1 in X. Not including pre or overscan'),
+            ('HIERARCH T80S DET OUT%i NY' % i_output, hdu[0].header['PG5_10'],
+             ' Number of image pixels read to port 1 in Y. Not including pre or overscan'),
+            ('HIERARCH T80S DET OUT%i IMSC' % i_output, ' [%i:%i,%i:%i] '%(line,line+hdu[0].header['PG5_5'],
+                                                                           colum,colum+hdu[0].header['PG5_10']),
+             ' Image region for OUT%i in format [xmin:xmax,ymin:ymax] '),
+            ('HIERARCH T80S DET OUT%i PRSCX' % i_output, ''),
+            ('HIERARCH T80S DET OUT%i PRSCY' % i_output, ''),
+            ('HIERARCH T80S DET OUT%i OVSCX' % i_output, ''),
+            ('HIERARCH T80S DET OUT%i OVSCY' % i_output,''),
+            ('HIERARCH T80S DET OUT%i GAIN' % i_output, self["OUT%i_GAIN" % i_output], ' Gain for output. Conversion from ADU to electron (e-/ADU)'),        #TODO:
+            ('HIERARCH T80S DET OUT%i RON' % i_output, self["OUT%i_RON" % i_output], ' Readout-noise of OUT%i at selected Gain (e-)' % i_output),
+            ('HIERARCH T80S DET OUT%i SATUR' % i_output, self["OUT%i_SATUR" % i_output], ' Saturation of OUT%i (e-)' % i_output)
+            ]
+
+            # for card in wcs:
+            #     hdu[0].header.set(*card)
+
+        chimeraCards = [('DATE-OBS',
+                 ImageUtil.formatDate(
+                     frameStart),
+                 'Date exposure started'),
+
+                ('CCD-TEMP', ccd0temp,
+                 'CCD Temperature at Exposure Start [deg. C]'),
+
+                ("EXPTIME", float(imageRequest['exptime']) or 0.,
+                 "exposure time in seconds"),
+
+                ('IMAGETYP', imageRequest['type'].strip(),
+                 'Image type'),
+
+                ('SHUTTER', str(imageRequest['shutter']),
+                 'Requested shutter state'),
+
+                ('INSTRUME', str(self['camera_model']), 'Name of instrument'),
+                ('CCD',    str(self['ccd_model']), 'CCD Model'),
+                ('CCD_DIMX', self.getPhysicalSize()
+                 [0], 'CCD X Dimension Size'),
+                ('CCD_DIMY', self.getPhysicalSize()
+                 [1], 'CCD Y Dimension Size'),
+                ('CCDPXSZX', self.getPixelSize()[0],
+                 'CCD X Pixel Size [micrometer]'),
+                ('CCDPXSZY', self.getPixelSize()[1],
+                 'CCD Y Pixel Size [micrometer]')]
+
+        # telescope = self.getManager().getProxy(self['telescope'])
+        #
+        # md += [ ('HIERARCH T80S TEL EL END', telescope.getAlt().toD().__str__()),
+        #         ('HIERARCH T80S TEL AZ END', telescope.getAz().toD().__str__()),
+        #         ('HIERARCH T80S TEL PARANG END', telescope.getParallacticAngle().toD().__str__(), ' Parallactic angle at end (deg) '),
+        #         ('HIERARCH T80S TEL AIRM END',  1 / N.cos(N.pi / 2 - self.instrument.getAlt().R), ' Airmass at end of exposure'),
+        #         ]
+
+        for card in chimeraCards:
+            hdu[0].header.set(*card)
+
+        for card in md:
+            hdu[0].header.set(*card)
+
+        self.log.debug('Writting new fits to disk')
+        hdu.writeto(filename,output_verify='silentfix+warn', checksum=True)
+        hdu.close()
+
+        self.log.debug('Header complete')
+
 
     def _processHeader(self, header):
 
