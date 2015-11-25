@@ -58,10 +58,13 @@ class SIBase(CameraBase):
                   'localhost': False,
                   "local_filename" : 'tmp.fits',
                   "local_path" : '/tmp/',
-                  "bad_cards" : "PG0_10,PG0_15,PG0_54,PG0_55,PG0_56",
+                  "bad_cards" : "NAXIS3,DATE-OBS,PG0_1,PG1_1,PG1_2,PG0_10,PG0_15,PG0_54,PG0_55,PG0_56",
                   "ccdtemp" : 'PG0_56',
                   "instrumentTemperature" : 'PG0_55',
+                  "detectorname" : 'e2V CCD290-99',
                   "exptime" : 'PG2_0',
+                  "ccdsize_x" : 'PG1_7',
+                  "ccdsize_y" : 'PG1_8',
 
                   # ITEMS to be measured on the camera
                   "OUT1_SATUR": "100000.0",  # Output 1 saturation level (e-)
@@ -422,8 +425,9 @@ class SIBase(CameraBase):
                 length = float(self.pars[i][2])  # /xsize
             elif "Image Area Size Y" in self.pars[i]:
                 heigth = float(self.pars[i][2])  # /ysize
-
-        return length, heigth
+        # Fixme: Properly read this from the configuration
+        
+        return 9., 9. #length, heigth
 
     def getOverscanSize(self, ccd=None):
         # ToDo: Select CCD
@@ -647,16 +651,34 @@ class SIBase(CameraBase):
                                         "or a valid ImageRequest object")
 
             path,filename = os.path.split(ImageUtil.makeFilename(filename))
+            filename = filename.replace('.fits','.FIT')
+            self.client.executeCommand(SetSaveToFolderPath(self['local_path']))
+            self.client.executeCommand(SaveImage(self['local_filename'],'I16'))
+            hdu = pyfits.open(os.path.join(self['local_path'],self['local_filename']),
+                  scale_back=True)
 
-            self.client.executeCommand(SetSaveToFolderPath(path))
-            self.client.executeCommand(SaveImage(filename,'I16'))
+            extraHeaders = {'ccdtemp' : hdu[0].header[self["ccdtemp"]],
+                            'itemp' : hdu[0].header[self["instrumentTemperature"]],
+                            'exptime' : float(hdu[0].header[self['exptime']]),
+                            }
+
+            self.log.debug('Excluding bad cards...')
+            badcards = self["bad_cards"].split(',')
+
+            for card in badcards:
+                self.log.debug('Removing card "%s" from header' % card)
+                hdu[0].header.remove(card)
+
+            hdu.writeto(os.path.join(self['local_path'], filename))
+
             # From now on camera is ready to take new exposures, will return and move this to a different thread.
             self.log.debug('Registering image and creating proxy')
             # register image on ImageServer
             server = getImageServer(self.getManager())
-            img = Image.fromFile(filename)
+            img = Image.fromFile(os.path.join(self['local_path'], filename))
             proxy = server.register(img)
-            p = threading.Thread(target=self._finishHeader,args=(imageRequest,self.__lastFrameStart,filename))
+            p = threading.Thread(target=self._finishHeader, args=(imageRequest, self.__lastFrameStart,
+                                                                 filename, path, extraHeaders))
             self._threadList.append(p)
             p.start()
 
@@ -665,20 +687,22 @@ class SIBase(CameraBase):
 
         # return
 
-    def _finishHeader(self, imageRequest, frameStart, filename):
+    def _finishHeader(self, imageRequest, frameStart, filename, path, extraHeaders):
+
+        hdu = pyfits.open(os.path.join(self['local_path'],filename),
+                          scale_back=True)
+        ccdtemp = extraHeaders["ccdtemp"]
+        itemp = extraHeaders["itemp"]
+        exptime = extraHeaders['exptime']
+
+        # self.log.debug('Excluding bad cards...')
+        # badcards = self["bad_cards"].split(',')
+        #
+        # for card in badcards:
+        #     self.log.debug('Removing card "%s" from header' % card)
+        #     hdu[0].header.remove(card)
 
         self.log.debug('Adding header information')
-
-        hdu = pyfits.open(filename,
-                          scale_back=True)
-
-        badcards = self["badcards"].split(',')
-        ccd0temp = hdu[0].header[self["ccdtemp"]]
-        instrumentTemperature = hdu[0].header[self['instrumentTemperature']]
-
-        for card in badcards:
-            self.log.debug('Removing card "%s" from header' % card)
-            hdu[0].header.remove(card)
 
         if imageRequest:
             for header in imageRequest.headers:
@@ -690,9 +714,9 @@ class SIBase(CameraBase):
         md = [('FILENAME', ImageUtil.makeFilename(imageRequest["filename"])),
               ("DATE", ImageUtil.formatDate(dt.datetime.utcnow()), "date of file creation"),
               ("AUTHOR", _chimera_name_, _chimera_long_description_),
-              ('HIERARCH T80S DET EXPTIME', float(hdu[0].header[self['exptime']]), "exposure time in seconds"),
+              ('HIERARCH T80S DET EXPTIME', exptime, "exposure time in seconds"),
               ('INSTRUME', str(self['camera_model']), 'Custom. Name of instrument'),
-              ('HIERARCH T80S DET TEMP', ccd0temp, ' Chip temperature (C) '),]
+              ('HIERARCH T80S DET TEMP', ccdtemp, ' Chip temperature (C) '),]
         #       ('IMAGETYP', request['type'].strip(), 'Custom. Image type'),
         #       ('SHUTTER', str(request['shutter']), 'Custom. Requested shutter state'),
         #
@@ -709,7 +733,7 @@ class SIBase(CameraBase):
         width, height) = self._getReadoutModeInfo(imageRequest["binning"],
                                                   imageRequest["window"])
         binFactor = self._binning_factors[binning]
-        pix_w, pix_h = self.getPixelSize()
+        pix_w, pix_h = self.getPhysicalSize() # hdu[0].header[self['ccdsize_x']] / hdu[0].header[self['']]
 
         if self["telescope_focal_length"] is not None:  # If there is no telescope_focal_length defined, don't store WCS
             focal_length = self["telescope_focal_length"]
@@ -738,8 +762,8 @@ class SIBase(CameraBase):
                 #('BZERO', '0.0'),        #TODO:
                 ('HIERARCH T80S INS OPER', 'CHIMERA'),
                 ('HIERARCH T80S INS PIXSCALE', '%.3f'%(scale_x*3600.), 'Pixel scale (arcsec)'),
-                ('HIERARCH OAJ INS TEMP', instrumentTemperature, 'Instrument temperature'),
-                ('HIERARCH T80S DET NAME', hdu[0].header['PG1_1'], 'Name of detector system '),
+                ('HIERARCH OAJ INS TEMP', itemp, 'Instrument temperature'),
+                ('HIERARCH T80S DET NAME', self["detectorname"], 'Name of detector system '),
                 ('HIERARCH T80S DET CCDS', ' 1 ', ' Number of CCDs in the mosaic'),        #TODO:
                 ('HIERARCH T80S DET CHIPID', ' 0 ', ' Detector CCD identification'),        #TODO:
                 ('HIERARCH T80S DET NX', hdu[0].header['NAXIS1'], ' Number of pixels along X '),
@@ -785,7 +809,7 @@ class SIBase(CameraBase):
                      frameStart),
                  'Date exposure started'),
 
-                ('CCD-TEMP', ccd0temp,
+                ('CCD-TEMP', ccdtemp,
                  'CCD Temperature at Exposure Start [deg. C]'),
 
                 ("EXPTIME", float(imageRequest['exptime']) or 0.,
@@ -823,11 +847,22 @@ class SIBase(CameraBase):
             hdu[0].header.set(*card)
 
         self.log.debug('Writting new fits to disk')
-        hdu.writeto(filename,output_verify='silentfix+warn', checksum=True)
+        hdu.writeto(os.path.join(path,
+                                 filename.replace('.FIT','.fits')),
+                    output_verify='silentfix+warn',
+                    checksum=True)
         hdu.close()
 
         self.log.debug('Header complete')
 
+        self.log.debug('Registering image and creating proxy')
+        # register image on ImageServer
+        server = getImageServer(self.getManager())
+        img = Image.fromFile(os.path.join(path,
+                                 filename.replace('.FIT','.fits')))
+        server.register(img)
+
+        return True
 
     def _processHeader(self, header):
 
