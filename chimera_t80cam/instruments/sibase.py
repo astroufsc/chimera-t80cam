@@ -426,7 +426,7 @@ class SIBase(CameraBase):
             elif "Image Area Size Y" in self.pars[i]:
                 heigth = float(self.pars[i][2])  # /ysize
         # Fixme: Properly read this from the configuration
-        
+
         return 9., 9. #length, heigth
 
     def getOverscanSize(self, ccd=None):
@@ -452,15 +452,13 @@ class SIBase(CameraBase):
         client = self.getClient()
 
         if shutterRequest == Shutter.OPEN:
-            shutter = client.executeCommand(
-                SetAcquisitionType(0))  # Light
+            shutter = client.executeCommand(SetAcquisitionType(0))  # Light
         elif shutterRequest == Shutter.CLOSE:
             shutter = client.executeCommand(SetAcquisitionType(1))  # Dark
         elif shutterRequest == Shutter.LEAVE_AS_IS:  # As it was
             pass
         else:
-            self.log.warning("Incorrect shutter option (%s)."
-                             " Leaving shutter intact" % shutterRequest)
+            self.log.warning("Incorrect shutter option (%s). Leaving shutter intact" % shutterRequest)
 
         if not imageRequest['binning']:
             srl_bin, prl_bin = 1, 1
@@ -476,8 +474,7 @@ class SIBase(CameraBase):
                 #  self._getReadoutModeInfo(imageRequest["binning"],
                 # imageRequest["window"])
 
-        client.executeCommand(
-            SetAcquisitionMode(0))  # Chimera will always execute SINGLE FRAMES
+        client.executeCommand(SetAcquisitionMode(0))  # Chimera will always execute SINGLE FRAMES
         client.executeCommand(SetExposureTime(imageRequest["exptime"]))
         # self.client.executeCommand(SetNumberOfFrames(self["frames"]))
         # self.client.executeCommand(
@@ -510,8 +507,7 @@ class SIBase(CameraBase):
 
             if header.id == 129:
                 ack = Ack()
-                ack.fromStruct(
-                    header_data + client.recv(header.length - len(header)))
+                ack.fromStruct(header_data + client.recv(header.length - len(header)))
 
                 if not ack.accept:
                     raise AckException("Camera did not accepted command...")
@@ -538,6 +534,31 @@ class SIBase(CameraBase):
         # Send temination to camera
         client = self.getClient()
         client.executeCommand(TerminateAcquisition())
+        # Get orphan packet from Acquire command issue in _expose
+        cmd = Acquire()
+
+        while True:
+
+            ret = select.select([client.sk], [], [])
+
+            if not ret[0]:
+                break
+
+            if ret[0][0] == client.sk:
+
+                header = Packet()
+                header_data = client.recv(len(header))
+                header.fromStruct(header_data)
+
+                if header.id == 131:  # incoming data pkt
+                    data = cmd.result()  # data structure as defined in data.py
+                    data.fromStruct(
+                        header_data + client.recv(header.length - len(header)))
+                    #data.fromStruct (header_data + self.recv (header.length))
+                    # logging.debug(data)
+                    self.log.debug("data type is {}".format(data.data_type))
+                    break
+
         # Readout
         # self._readout(imageRequest)
 
@@ -560,7 +581,10 @@ class SIBase(CameraBase):
         status = CameraStatus.OK
         client = self.getClient()
         if self.abort.isSet():
-            status = CameraStatus.ABORTED
+            self.readoutComplete(None, CameraStatus.ABORTED)
+            return None
+
+            # status = CameraStatus.ABORTED
 
         self.abort.clear()
 
@@ -596,11 +620,7 @@ class SIBase(CameraBase):
                     self.log.debug("data type is {}".format(data.data_type))
                     break
 
-        (mode, binning, top, left, width, height) = self._getReadoutModeInfo(
-            imageRequest["binning"], imageRequest["window"])
-
-        # headers = {}
-        # pix = N.zeros((height,width),dtype=N.uint16)
+        (mode, binning, top, left, width, height) = self._getReadoutModeInfo(imageRequest["binning"], imageRequest["window"])
 
        # LAST ABORT POINT
         if self.abort.isSet():
@@ -610,8 +630,7 @@ class SIBase(CameraBase):
         if not self["localhost"]:
             self.log.debug('Remote mode')
 
-            serial_length, parallel_length, img_buffer = client.executeCommand(
-                RetrieveImage(0))
+            serial_length, parallel_length, img_buffer = client.executeCommand(RetrieveImage(0))
 
             pix = N.array(img_buffer, dtype=N.uint16)
 
@@ -630,37 +649,33 @@ class SIBase(CameraBase):
             headers = self._processHeader(header)
 
             headers["frame_start_time"] = self.__lastFrameStart
-            headers["frame_temperature"] = self.getTemperature()
-            headers["binning_factor"] = self._binning_factors[binning]
+            # headers["frame_temperature"] = self.getTemperature()
+            # headers["binning_factor"] = self._binning_factors[binning]
 
-            proxy = self._saveImage(
-                imageRequest, pix, headers)
+            proxy = self._saveImage(imageRequest, pix, headers)
 
         else:
-            self.log.debug('Local mode. Saving file to %s'%(os.path.join(self["local_path"],self["local_filename"])))
+            self.log.debug('Local mode. Saving file to %s' % (os.path.join(self["local_path"], self["local_filename"])))
             # Save the image to the local disk and read them instead. Should be much faster.
             # Todo: Get rid of "local_path" and "local_filename" and use temporary files
             filename = ''
 
             if imageRequest:
-                try:
+                if not "filename" in imageRequest.keys():
+                    raise TypeError("Invalid filename, you must pass filename=something or a valid ImageRequest object")
+                else:
                     filename = imageRequest["filename"]
-                except KeyError:
-                    if not filename:
-                        raise TypeError("Invalid filename, you must pass filename=something"
-                                        "or a valid ImageRequest object")
 
-            path,filename = os.path.split(ImageUtil.makeFilename(filename))
-            filename = filename.replace('.fits','.FIT')
+            path, filename = os.path.split(ImageUtil.makeFilename(filename))
+
             self.client.executeCommand(SetSaveToFolderPath(self['local_path']))
-            self.client.executeCommand(SaveImage(self['local_filename'],'I16'))
-            hdu = pyfits.open(os.path.join(self['local_path'],self['local_filename']),
-                  scale_back=True)
+            self.client.executeCommand(SaveImage(self['local_filename'], 'I16'))
+            hdu = pyfits.open(os.path.join(self['local_path'], self['local_filename']), scale_back=True)
 
-            extraHeaders = {'ccdtemp' : hdu[0].header[self["ccdtemp"]],
-                            'itemp' : hdu[0].header[self["instrumentTemperature"]],
-                            'exptime' : float(hdu[0].header[self['exptime']]),
-                            }
+            extraHeaders = {'ccdtemp': hdu[0].header[self["ccdtemp"]],
+                           'itemp': hdu[0].header[self["instrumentTemperature"]],
+                           'exptime': float(hdu[0].header[self['exptime']]),
+                           }
 
             self.log.debug('Excluding bad cards...')
             badcards = self["bad_cards"].split(',')
@@ -669,16 +684,26 @@ class SIBase(CameraBase):
                 self.log.debug('Removing card "%s" from header' % card)
                 hdu[0].header.remove(card)
 
+            # Save temporary image to local_path/night
+            # Create dir if necessary
+            # tmpdir = os.path.join(self['local_path'], os.path.split(path)[-1])
+            # if not os.path.exists(tmpdir):
+            #     os.mkdir(tmpdir)
+            #
+            # # Save temporary image
+            # hdu.writeto(os.path.join(tmpdir, filename))
             hdu.writeto(os.path.join(self['local_path'], filename))
 
             # From now on camera is ready to take new exposures, will return and move this to a different thread.
-            self.log.debug('Registering image and creating proxy')
+            self.log.debug('Registering image and creating proxy. PP')
             # register image on ImageServer
             server = getImageServer(self.getManager())
+            # img = Image.fromFile(os.path.join(self['local_path'], filename))
             img = Image.fromFile(os.path.join(self['local_path'], filename))
+
             proxy = server.register(img)
-            p = threading.Thread(target=self._finishHeader, args=(imageRequest, self.__lastFrameStart,
-                                                                 filename, path, extraHeaders))
+            # proxy = self._finishHeader(imageRequest,self.__lastFrameStart,filename,path,extraHeaders)
+            p = threading.Thread(target=self._finishHeader, args=(imageRequest, self.__lastFrameStart, filename, path, extraHeaders))
             self._threadList.append(p)
             p.start()
 
@@ -689,11 +714,7 @@ class SIBase(CameraBase):
 
     def _finishHeader(self, imageRequest, frameStart, filename, path, extraHeaders):
 
-        hdu = pyfits.open(os.path.join(self['local_path'],filename),
-                          scale_back=True)
-        ccdtemp = extraHeaders["ccdtemp"]
-        itemp = extraHeaders["itemp"]
-        exptime = extraHeaders['exptime']
+        hdu = pyfits.open(os.path.join(self['local_path'], filename), scale_back=True)
 
         # self.log.debug('Excluding bad cards...')
         # badcards = self["bad_cards"].split(',')
@@ -702,7 +723,12 @@ class SIBase(CameraBase):
         #     self.log.debug('Removing card "%s" from header' % card)
         #     hdu[0].header.remove(card)
 
+
         self.log.debug('Adding header information')
+
+        ccdtemp = extraHeaders["ccdtemp"]
+        itemp = extraHeaders["itemp"]
+        exptime = extraHeaders['exptime']
 
         if imageRequest:
             for header in imageRequest.headers:
@@ -711,7 +737,7 @@ class SIBase(CameraBase):
                 except Exception, e:
                     log.warning("Couldn't add %s: %s" % (str(header), str(e)))
 
-        md = [('FILENAME', ImageUtil.makeFilename(imageRequest["filename"])),
+        md = [('FILENAME', os.path.basename(filename)),
               ("DATE", ImageUtil.formatDate(dt.datetime.utcnow()), "date of file creation"),
               ("AUTHOR", _chimera_name_, _chimera_long_description_),
               ('HIERARCH T80S DET EXPTIME', exptime, "exposure time in seconds"),
@@ -733,7 +759,7 @@ class SIBase(CameraBase):
         width, height) = self._getReadoutModeInfo(imageRequest["binning"],
                                                   imageRequest["window"])
         binFactor = self._binning_factors[binning]
-        pix_w, pix_h = self.getPhysicalSize() # hdu[0].header[self['ccdsize_x']] / hdu[0].header[self['']]
+        pix_w, pix_h = self.getPixelSize() # hdu[0].header[self['ccdsize_x']] / hdu[0].header[self['']]
 
         if self["telescope_focal_length"] is not None:  # If there is no telescope_focal_length defined, don't store WCS
             focal_length = self["telescope_focal_length"]
@@ -757,24 +783,25 @@ class SIBase(CameraBase):
                 ("CD2_2", scale_y * N.cos(self["rotation"]*N.pi/180.), "transformation matrix element (2,2)")]
 
 
-        md += [ ('BUNIT', 'adu', 'physical units of the array values '),        #TODO:
+        md += [
+                # ('BUNIT', 'adu', 'physical units of the array values '),        #TODO:
                 #('BLANK', -32768),        #TODO:
                 #('BZERO', '0.0'),        #TODO:
                 ('HIERARCH T80S INS OPER', 'CHIMERA'),
                 ('HIERARCH T80S INS PIXSCALE', '%.3f'%(scale_x*3600.), 'Pixel scale (arcsec)'),
-                ('HIERARCH OAJ INS TEMP', itemp, 'Instrument temperature'),
+                ('HIERARCH T80S INS TEMP', itemp, 'Instrument temperature'),
                 ('HIERARCH T80S DET NAME', self["detectorname"], 'Name of detector system '),
-                ('HIERARCH T80S DET CCDS', ' 1 ', ' Number of CCDs in the mosaic'),        #TODO:
-                ('HIERARCH T80S DET CHIPID', ' 0 ', ' Detector CCD identification'),        #TODO:
+                # ('HIERARCH T80S DET CCDS', ' 1 ', ' Number of CCDs in the mosaic'),        #TODO:
+                # ('HIERARCH T80S DET CHIPID', ' 0 ', ' Detector CCD identification'),        #TODO:
                 ('HIERARCH T80S DET NX', hdu[0].header['NAXIS1'], ' Number of pixels along X '),
                 ('HIERARCH T80S DET NY', hdu[0].header['NAXIS2'], ' Number of pixels along Y'),
                 ('HIERARCH T80S DET PSZX', pix_w, ' Size of pixel in X (mu) '),
                 ('HIERARCH T80S DET PSZY', pix_h, ' Size of pixel in Y (mu) '),
-                ('HIERARCH T80S DET EXP TYPE', 'LIGHT', ' Type of exp as known to the CCD SW '),        #TODO:
-                ('HIERARCH T80S DET READ MODE', 'SLOW', ' Readout method'),        #TODO:
-                ('HIERARCH T80S DET READ SPEED', '1 MHz', ' Readout speed'),        #TODO:
-                ('HIERARCH T80S DET READ CLOCK', 'DSI 68, High Gain, 1x1', ' Type of exp as known to the CCD SW'),        #TODO:
-                ('HIERARCH T80S DET OUTPUTS', ' 2 ', 'Number of output ports used on chip'),        #TODO:
+                # ('HIERARCH T80S DET EXP TYPE', 'LIGHT', ' Type of exp as known to the CCD SW '),        #TODO:
+                # ('HIERARCH T80S DET READ MODE', 'SLOW', ' Readout method'),        #TODO:
+                # ('HIERARCH T80S DET READ SPEED', '1 MHz', ' Readout speed'),        #TODO:
+                # ('HIERARCH T80S DET READ CLOCK', 'DSI 68, High Gain, 1x1', ' Type of exp as known to the CCD SW'),        #TODO:
+                # ('HIERARCH T80S DET OUTPUTS', ' 2 ', 'Number of output ports used on chip'),        #TODO:
                 ('HIERARCH T80S DET REQTIM', float(imageRequest['exptime']), 'Requested exposure time (sec)')]
 
         for i_output in range(1, 17):
@@ -782,55 +809,41 @@ class SIBase(CameraBase):
             colum = (i_output-((i_output-1)%2)+1)/2
 
             md += [
-            ('HIERARCH T80S DET OUT%i ID' % i_output, ' %2i '%(i_output-1), ' Identification for OUT1 readout port '),
+            ('HIERARCH T80S DET OUT%i ID' % i_output, ' %2i '%(i_output-1), ' Identification for OUT%i readout port ' % i_output),
             ('HIERARCH T80S DET OUT%i X' % i_output, ' %i ' % (line*hdu[0].header['PG5_5'] + 1), ' X location of output in the chip. (lower left pixel)'),        #TODO:
             ('HIERARCH T80S DET OUT%i Y' % i_output, ' %i ' % (colum*hdu[0].header['PG5_10'] + 1), ' Y location of output in the chip. (lower left pixel)'),        #TODO:
             ('HIERARCH T80S DET OUT%i NX' % i_output, hdu[0].header['PG5_5'],
-             ' Number of image pixels read to port 1 in X. Not including pre or overscan'),
+             ' Number of image pixels read to port %i in X. Not including pre or overscan' % i_output),
             ('HIERARCH T80S DET OUT%i NY' % i_output, hdu[0].header['PG5_10'],
-             ' Number of image pixels read to port 1 in Y. Not including pre or overscan'),
+             ' Number of image pixels read to port %i in Y. Not including pre or overscan' % i_output),
             ('HIERARCH T80S DET OUT%i IMSC' % i_output, ' [%i:%i,%i:%i] '%(line,line+hdu[0].header['PG5_5'],
                                                                            colum,colum+hdu[0].header['PG5_10']),
-             ' Image region for OUT%i in format [xmin:xmax,ymin:ymax] '),
-            ('HIERARCH T80S DET OUT%i PRSCX' % i_output, ''),
-            ('HIERARCH T80S DET OUT%i PRSCY' % i_output, ''),
-            ('HIERARCH T80S DET OUT%i OVSCX' % i_output, ''),
-            ('HIERARCH T80S DET OUT%i OVSCY' % i_output,''),
-            ('HIERARCH T80S DET OUT%i GAIN' % i_output, self["OUT%i_GAIN" % i_output], ' Gain for output. Conversion from ADU to electron (e-/ADU)'),        #TODO:
-            ('HIERARCH T80S DET OUT%i RON' % i_output, self["OUT%i_RON" % i_output], ' Readout-noise of OUT%i at selected Gain (e-)' % i_output),
-            ('HIERARCH T80S DET OUT%i SATUR' % i_output, self["OUT%i_SATUR" % i_output], ' Saturation of OUT%i (e-)' % i_output)
+             ' Image region for OUT%i in format [xmin:xmax,ymin:ymax] ' % i_output),
+            # ('HIERARCH T80S DET OUT%i PRSCX' % i_output, ''), # TODO:
+            # ('HIERARCH T80S DET OUT%i PRSCY' % i_output, ''), # TODO:
+            # ('HIERARCH T80S DET OUT%i OVSCX' % i_output, ''), # TODO:
+            # ('HIERARCH T80S DET OUT%i OVSCY' % i_output,''), # TODO:
+            # ('HIERARCH T80S DET OUT%i OVSCY' % i_output,''), # TODO:
+            # ('HIERARCH T80S DET OUT%i GAIN' % i_output, self["OUT%i_GAIN" % i_output], ' Gain for output. Conversion from ADU to electron (e-/ADU)'),        #TODO:
+            # ('HIERARCH T80S DET OUT%i RON' % i_output, self["OUT%i_RON" % i_output], ' Readout-noise of OUT%i at selected Gain (e-)' % i_output),     # TODO:
+            # ('HIERARCH T80S DET OUT%i SATUR' % i_output, self["OUT%i_SATUR" % i_output], ' Saturation of OUT%i (e-)' % i_output)      # TODO:
             ]
 
             # for card in wcs:
             #     hdu[0].header.set(*card)
 
-        chimeraCards = [('DATE-OBS',
-                 ImageUtil.formatDate(
-                     frameStart),
-                 'Date exposure started'),
+        chimeraCards = [('DATE-OBS', ImageUtil.formatDate(frameStart), 'Date exposure started'),
 
-                ('CCD-TEMP', ccdtemp,
-                 'CCD Temperature at Exposure Start [deg. C]'),
-
-                ("EXPTIME", float(imageRequest['exptime']) or 0.,
-                 "exposure time in seconds"),
-
-                ('IMAGETYP', imageRequest['type'].strip(),
-                 'Image type'),
-
-                ('SHUTTER', str(imageRequest['shutter']),
-                 'Requested shutter state'),
-
-                ('INSTRUME', str(self['camera_model']), 'Name of instrument'),
-                ('CCD',    str(self['ccd_model']), 'CCD Model'),
-                ('CCD_DIMX', self.getPhysicalSize()
-                 [0], 'CCD X Dimension Size'),
-                ('CCD_DIMY', self.getPhysicalSize()
-                 [1], 'CCD Y Dimension Size'),
-                ('CCDPXSZX', self.getPixelSize()[0],
-                 'CCD X Pixel Size [micrometer]'),
-                ('CCDPXSZY', self.getPixelSize()[1],
-                 'CCD Y Pixel Size [micrometer]')]
+                        ('CCD-TEMP', ccdtemp, 'CCD Temperature at Exposure Start [deg. C]'),
+                        ("EXPTIME", float(imageRequest['exptime']) or 0., "exposure time in seconds"),
+                        ('IMAGETYP', imageRequest['type'].strip(), 'Image type'),
+                        ('SHUTTER', str(imageRequest['shutter']), 'Requested shutter state'),
+                        ('INSTRUME', str(self['camera_model']), 'Name of instrument'),
+                        ('CCD', str(self['ccd_model']), 'CCD Model'),
+                        ('CCD_DIMX', self.getPhysicalSize()[0], 'CCD X Dimension Size'),
+                        ('CCD_DIMY', self.getPhysicalSize()[1], 'CCD Y Dimension Size'),
+                        ('CCDPXSZX', self.getPixelSize()[0], 'CCD X Pixel Size [micrometer]'),
+                        ('CCDPXSZY', self.getPixelSize()[1], 'CCD Y Pixel Size [micrometer]')]
 
         # telescope = self.getManager().getProxy(self['telescope'])
         #
@@ -860,9 +873,9 @@ class SIBase(CameraBase):
         server = getImageServer(self.getManager())
         img = Image.fromFile(os.path.join(path,
                                  filename.replace('.FIT','.fits')))
-        server.register(img)
+        # server.register(img)
 
-        return True
+        return server.register(img)
 
     def _processHeader(self, header):
 
