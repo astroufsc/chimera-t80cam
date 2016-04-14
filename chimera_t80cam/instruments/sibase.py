@@ -484,7 +484,7 @@ class SIBase(CameraBase):
         cmd_to_send = cmd.command()
         # save time exposure started
         self.__lastFrameStart = dt.datetime.utcnow()
-        self.lastFrameTemp = self.getTemperature()
+        self.lastFrameTemp = -999. # self.getTemperature()
 
         status = CameraStatus.OK
 
@@ -670,6 +670,9 @@ class SIBase(CameraBase):
 
             self.client.executeCommand(SetSaveToFolderPath(self['local_path']))
             self.client.executeCommand(SaveImage(self['local_filename'], 'I16'))
+            # self.releaseExposure()
+            # self.unlockExposure()
+
             hdu = pyfits.open(os.path.join(self['local_path'], self['local_filename']), scale_back=True)
 
             extraHeaders = {'ccdtemp': hdu[0].header[self["ccdtemp"]],
@@ -693,7 +696,6 @@ class SIBase(CameraBase):
             # # Save temporary image
             # hdu.writeto(os.path.join(tmpdir, filename))
             hdu.writeto(os.path.join(self['local_path'], filename))
-
             # From now on camera is ready to take new exposures, will return and move this to a different thread.
             self.log.debug('Registering image and creating proxy. PP')
             # register image on ImageServer
