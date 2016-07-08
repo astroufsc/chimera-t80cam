@@ -58,6 +58,7 @@ class SIBase(CameraBase):
                   'localhost': False,
                   "local_filename" : 'tmp.fits',
                   "local_path" : '/tmp/',
+                  "fast_mode" : True, # May return image with unfinished header
                   "bad_cards" : "NAXIS3,DATE-OBS,PG0_1,PG1_1,PG1_2,PG0_10,PG0_15,PG0_54,PG0_55,PG0_56",
                   "ccdtemp" : 'PG0_56',
                   "instrumentTemperature" : 'PG0_55',
@@ -65,6 +66,9 @@ class SIBase(CameraBase):
                   "exptime" : 'PG2_0',
                   "ccdsize_x" : 'PG1_7',
                   "ccdsize_y" : 'PG1_8',
+                  # WCS information
+                  "parity_y" : 1., # Up is North
+                  "parity_x" : 1., # Left is East
 
                   # ITEMS to be measured on the camera
                   "OUT1_SATUR": "100000.0",  # Output 1 saturation level (e-)
@@ -673,7 +677,9 @@ class SIBase(CameraBase):
             # self.releaseExposure()
             # self.unlockExposure()
 
-            hdu = pyfits.open(os.path.join(self['local_path'], self['local_filename']), scale_back=True)
+            hdu = pyfits.open(os.path.join(self['local_path'], self['local_filename']),
+                              ignore_missing_end = True,
+                              scale_back=True)
 
             extraHeaders = {'ccdtemp': hdu[0].header[self["ccdtemp"]],
                            'itemp': hdu[0].header[self["instrumentTemperature"]],
@@ -705,9 +711,12 @@ class SIBase(CameraBase):
 
             proxy = server.register(img)
             # proxy = self._finishHeader(imageRequest,self.__lastFrameStart,filename,path,extraHeaders)
-            p = threading.Thread(target=self._finishHeader, args=(imageRequest, self.__lastFrameStart, filename, path, extraHeaders))
-            self._threadList.append(p)
-            p.start()
+            if self["fast_mode"]:
+                p = threading.Thread(target=self._finishHeader, args=(imageRequest, self.__lastFrameStart, filename, path, extraHeaders))
+                self._threadList.append(p)
+                p.start()
+            else:
+                proxy = self._finishHeader(imageRequest,self.__lastFrameStart,filename,path,extraHeaders)
 
         self.readoutComplete(proxy, CameraStatus.OK)
         return proxy
@@ -772,17 +781,23 @@ class SIBase(CameraBase):
             full_width, full_height = self.getPhysicalSize()
             CRPIX1 = ((int(full_width / 2.0)) - left) - 1
             CRPIX2 = ((int(full_height / 2.0)) - top) - 1
-
+            # Todo: Check telescope pier side
+            parity_y = self["parity_y"]
+            parity_x = self["parity_x"]
             # Adding WCS coordinates according to FITS standard.
             # Quick sheet: http://www.astro.iag.usp.br/~moser/notes/GAi_FITSimgs.html
             # http://adsabs.harvard.edu/abs/2002A%26A...395.1061G
             # http://adsabs.harvard.edu/abs/2002A%26A...395.1077C
             md += [("CRPIX1", CRPIX1, "coordinate system reference pixel"),
                 ("CRPIX2", CRPIX2, "coordinate system reference pixel"),
-                ("CD1_1",  scale_x * N.cos(self["rotation"]*N.pi/180.), "transformation matrix element (1,1)"),
-                ("CD1_2", -scale_y * N.sin(self["rotation"]*N.pi/180.), "transformation matrix element (1,2)"),
-                ("CD2_1", scale_x * N.sin(self["rotation"]*N.pi/180.), "transformation matrix element (2,1)"),
-                ("CD2_2", scale_y * N.cos(self["rotation"]*N.pi/180.), "transformation matrix element (2,2)")]
+                ("CD1_1", parity_x * scale_x * N.cos(self["rotation"]*N.pi/180.),
+                 "transformation matrix element (1,1)"),
+                ("CD1_2", -parity_y * scale_y * N.sin(self["rotation"]*N.pi/180.),
+                 "transformation matrix element (1,2)"),
+                ("CD2_1", parity_x * scale_x * N.sin(self["rotation"]*N.pi/180.),
+                 "transformation matrix element (2,1)"),
+                ("CD2_2", parity_y * scale_y * N.cos(self["rotation"]*N.pi/180.),
+                 "transformation matrix element (2,2)")]
 
 
         md += [
@@ -810,17 +825,17 @@ class SIBase(CameraBase):
             line = (i_output-1)%2
             colum = (i_output-((i_output-1)%2)+1)/2
 
-            md += [
-            ('HIERARCH T80S DET OUT%i ID' % i_output, ' %2i '%(i_output-1), ' Identification for OUT%i readout port ' % i_output),
-            ('HIERARCH T80S DET OUT%i X' % i_output, ' %i ' % (line*hdu[0].header['PG5_5'] + 1), ' X location of output in the chip. (lower left pixel)'),        #TODO:
-            ('HIERARCH T80S DET OUT%i Y' % i_output, ' %i ' % (colum*hdu[0].header['PG5_10'] + 1), ' Y location of output in the chip. (lower left pixel)'),        #TODO:
-            ('HIERARCH T80S DET OUT%i NX' % i_output, hdu[0].header['PG5_5'],
-             ' Number of image pixels read to port %i in X. Not including pre or overscan' % i_output),
-            ('HIERARCH T80S DET OUT%i NY' % i_output, hdu[0].header['PG5_10'],
-             ' Number of image pixels read to port %i in Y. Not including pre or overscan' % i_output),
-            ('HIERARCH T80S DET OUT%i IMSC' % i_output, ' [%i:%i,%i:%i] '%(line,line+hdu[0].header['PG5_5'],
-                                                                           colum,colum+hdu[0].header['PG5_10']),
-             ' Image region for OUT%i in format [xmin:xmax,ymin:ymax] ' % i_output),
+            # md += [
+            # ('HIERARCH T80S DET OUT%i ID' % i_output, ' %2i '%(i_output-1), ' Identification for OUT%i readout port ' % i_output),
+            # ('HIERARCH T80S DET OUT%i X' % i_output, ' %i ' % (line*hdu[0].header['PG5_5'] + 1), ' X location of output in the chip. (lower left pixel)'),        #TODO:
+            # ('HIERARCH T80S DET OUT%i Y' % i_output, ' %i ' % (colum*hdu[0].header['PG5_10'] + 1), ' Y location of output in the chip. (lower left pixel)'),        #TODO:
+            # ('HIERARCH T80S DET OUT%i NX' % i_output, hdu[0].header['PG5_5'],
+            #  ' Number of image pixels read to port %i in X. Not including pre or overscan' % i_output),
+            # ('HIERARCH T80S DET OUT%i NY' % i_output, hdu[0].header['PG5_10'],
+            #  ' Number of image pixels read to port %i in Y. Not including pre or overscan' % i_output),
+            # ('HIERARCH T80S DET OUT%i IMSC' % i_output, ' [%i:%i,%i:%i] '%(line,line+hdu[0].header['PG5_5'],
+            #                                                                colum,colum+hdu[0].header['PG5_10']),
+            #  ' Image region for OUT%i in format [xmin:xmax,ymin:ymax] ' % i_output),
             # ('HIERARCH T80S DET OUT%i PRSCX' % i_output, ''), # TODO:
             # ('HIERARCH T80S DET OUT%i PRSCY' % i_output, ''), # TODO:
             # ('HIERARCH T80S DET OUT%i OVSCX' % i_output, ''), # TODO:
@@ -829,7 +844,7 @@ class SIBase(CameraBase):
             # ('HIERARCH T80S DET OUT%i GAIN' % i_output, self["OUT%i_GAIN" % i_output], ' Gain for output. Conversion from ADU to electron (e-/ADU)'),        #TODO:
             # ('HIERARCH T80S DET OUT%i RON' % i_output, self["OUT%i_RON" % i_output], ' Readout-noise of OUT%i at selected Gain (e-)' % i_output),     # TODO:
             # ('HIERARCH T80S DET OUT%i SATUR' % i_output, self["OUT%i_SATUR" % i_output], ' Saturation of OUT%i (e-)' % i_output)      # TODO:
-            ]
+            # ]
 
             # for card in wcs:
             #     hdu[0].header.set(*card)
