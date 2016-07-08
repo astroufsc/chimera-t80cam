@@ -134,6 +134,7 @@ class SIBase(CameraBase):
         self.sgl2 = list()
 
         self.ccd = 0
+        self.__is_exposing = threading.Event()
 
         # self.lastTemp = None
         #
@@ -495,38 +496,42 @@ class SIBase(CameraBase):
         # ok, start it
         self.exposeBegin(imageRequest)
 
-        # send Acquire command
-        bytes_sent = client.sk.send(cmd_to_send.toStruct())
+        self.__is_exposing.set()
 
-        # check acknowledge
-        ret = select.select([client.sk], [], [])
-        if not ret[0]:
-            raise SIException('No answer from camera')
+        try:
+            # send Acquire command
+            bytes_sent = client.sk.send(cmd_to_send.toStruct())
 
-        if ret[0][0] == client.sk:
+            # check acknowledge
+            ret = select.select([client.sk], [], [])
+            if not ret[0]:
+                raise SIException('No answer from camera')
 
-            header = Packet()
-            header_data = client.recv(len(header))
-            header.fromStruct(header_data)
+            if ret[0][0] == client.sk:
 
-            if header.id == 129:
-                ack = Ack()
-                ack.fromStruct(header_data + client.recv(header.length - len(header)))
+                header = Packet()
+                header_data = client.recv(len(header))
+                header.fromStruct(header_data)
 
-                if not ack.accept:
-                    raise AckException("Camera did not accepted command...")
-            else:
-                raise AckException("No acknowledge received from camera...")
+                if header.id == 129:
+                    ack = Ack()
+                    ack.fromStruct(header_data + client.recv(header.length - len(header)))
 
-        self.abort.clear()
+                    if not ack.accept:
+                        raise AckException("Camera did not accepted command...")
+                else:
+                    raise AckException("No acknowledge received from camera...")
 
-        while self._isExposing():
-            # [ABORT POINT]
-            if self.abort.isSet():
-                self.abortExposure()
-                status = CameraStatus.ABORTED
-                break
+            self.abort.clear()
 
+            while self._isExposing():
+                # [ABORT POINT]
+                if self.abort.isSet():
+                    self.abortExposure()
+                    status = CameraStatus.ABORTED
+                    break
+        finally:
+            self.__is_exposing.clear()
             # end exposure and returns
         return self._endExposure(imageRequest, status)
 
@@ -536,19 +541,23 @@ class SIBase(CameraBase):
 
     def abortExposure(self, readout=True):
 
+        self._terminateAcquisition(readout)
         self.abort.set()
-        self.terminateAcquisition(readout)
 
-    def terminateAcquisition(self,readout=True):
 
-        # Send temination to camera
+    def _terminateAcquisition(self,readout=True):
+
+
         client = self.getClient()
 
-        if not self._isExposing():
+        if self.__is_exposing.isSet():
+            # Send temination to camera
+            client.executeCommand(TerminateAcquisition(),noAck=True)
+        else:
             self.log.warning("Cannot terminate acquisition. Camera is not exposing!")
-            return
 
-        client.executeCommand(TerminateAcquisition())
+        return
+
         # Get orphan packet from Acquire command issue in _expose
         cmd = Acquire()
 
