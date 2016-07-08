@@ -535,8 +535,19 @@ class SIBase(CameraBase):
         return True
 
     def abortExposure(self, readout=True):
+
+        self.abort.set()
+        self.terminateAcquisition(readout)
+
+    def terminateAcquisition(self,readout=True):
+
         # Send temination to camera
         client = self.getClient()
+
+        if not self._isExposing():
+            self.log.warning("Cannot terminate acquisition. Camera is not exposing!")
+            return
+
         client.executeCommand(TerminateAcquisition())
         # Get orphan packet from Acquire command issue in _expose
         cmd = Acquire()
