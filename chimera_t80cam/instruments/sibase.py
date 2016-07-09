@@ -526,7 +526,28 @@ class SIBase(CameraBase):
             if self.abort.isSet():
                 # self.abortExposure()
                 client.executeCommand(TerminateAcquisition(),noAck=True)
-                ret = select.select([client.sk], [], []) # Get orphan packet from Acquire command
+                while True:
+
+                    ret = select.select([client.sk], [], [])
+
+                    if not ret[0]:
+                        break
+
+                    if ret[0][0] == client.sk:
+
+                        header = Packet()
+                        header_data = client.recv(len(header))
+                        header.fromStruct(header_data)
+
+                        if header.id == 131:  # incoming data pkt
+                            data = cmd.result()  # data structure as defined in data.py
+                            data.fromStruct(
+                                header_data + client.recv(header.length - len(header)))
+                            #data.fromStruct (header_data + self.recv (header.length))
+                            # logging.debug(data)
+                            self.log.debug("data type is {}".format(data.data_type))
+                            break
+
                 status = CameraStatus.ABORTED
                 break
 
