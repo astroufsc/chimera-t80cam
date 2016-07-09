@@ -496,43 +496,40 @@ class SIBase(CameraBase):
         # ok, start it
         self.exposeBegin(imageRequest)
 
-        self.__is_exposing.set()
+        # send Acquire command
+        bytes_sent = client.sk.send(cmd_to_send.toStruct())
 
-        try:
-            # send Acquire command
-            bytes_sent = client.sk.send(cmd_to_send.toStruct())
+        # check acknowledge
+        ret = select.select([client.sk], [], [])
+        if not ret[0]:
+            raise SIException('No answer from camera')
 
-            # check acknowledge
-            ret = select.select([client.sk], [], [])
-            if not ret[0]:
-                raise SIException('No answer from camera')
+        if ret[0][0] == client.sk:
 
-            if ret[0][0] == client.sk:
+            header = Packet()
+            header_data = client.recv(len(header))
+            header.fromStruct(header_data)
 
-                header = Packet()
-                header_data = client.recv(len(header))
-                header.fromStruct(header_data)
+            if header.id == 129:
+                ack = Ack()
+                ack.fromStruct(header_data + client.recv(header.length - len(header)))
 
-                if header.id == 129:
-                    ack = Ack()
-                    ack.fromStruct(header_data + client.recv(header.length - len(header)))
+                if not ack.accept:
+                    raise AckException("Camera did not accepted command...")
+            else:
+                raise AckException("No acknowledge received from camera...")
 
-                    if not ack.accept:
-                        raise AckException("Camera did not accepted command...")
-                else:
-                    raise AckException("No acknowledge received from camera...")
+        self.abort.clear()
 
-            self.abort.clear()
+        while self._isExposing():
+            # [ABORT POINT]
+            if self.abort.isSet():
+                # self.abortExposure()
+                client.executeCommand(TerminateAcquisition(),noAck=True)
+                ret = select.select([client.sk], [], []) # Get orphan packet from Acquire command
+                status = CameraStatus.ABORTED
+                break
 
-            while self._isExposing():
-                # [ABORT POINT]
-                if self.abort.isSet():
-                    self.abortExposure()
-                    status = CameraStatus.ABORTED
-                    break
-        finally:
-            self.__is_exposing.clear()
-            # end exposure and returns
         return self._endExposure(imageRequest, status)
 
     def _endExposure(self, request, status):
@@ -540,51 +537,7 @@ class SIBase(CameraBase):
         return True
 
     def abortExposure(self, readout=True):
-
-        self._terminateAcquisition(readout)
         self.abort.set()
-
-
-    def _terminateAcquisition(self,readout=True):
-
-
-        client = self.getClient()
-
-        if self.__is_exposing.isSet():
-            # Send temination to camera
-            client.executeCommand(TerminateAcquisition(),noAck=True)
-        else:
-            self.log.warning("Cannot terminate acquisition. Camera is not exposing!")
-
-        return
-
-        # Get orphan packet from Acquire command issue in _expose
-        cmd = Acquire()
-
-        while True:
-
-            ret = select.select([client.sk], [], [])
-
-            if not ret[0]:
-                break
-
-            if ret[0][0] == client.sk:
-
-                header = Packet()
-                header_data = client.recv(len(header))
-                header.fromStruct(header_data)
-
-                if header.id == 131:  # incoming data pkt
-                    data = cmd.result()  # data structure as defined in data.py
-                    data.fromStruct(
-                        header_data + client.recv(header.length - len(header)))
-                    #data.fromStruct (header_data + self.recv (header.length))
-                    # logging.debug(data)
-                    self.log.debug("data type is {}".format(data.data_type))
-                    break
-
-        # Readout
-        # self._readout(imageRequest)
 
     def _isExposing(self):
         client = self.getClient()
