@@ -178,8 +178,8 @@ class SIBase(CameraBase):
 
         self._threadList = []
 
-        self._tmpFilesProxyQueue = Queue()
-        self._finalFilesProxyQueue = Queue()
+        self._tmpFilesProxyQueue = Queue.Queue()
+        self._finalFilesProxyQueue = Queue.Queue()
 
     def __start__(self):
         self.open()
