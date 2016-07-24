@@ -3,6 +3,7 @@ import os
 import re
 import logging
 import threading
+import Queue
 
 import numpy as N
 from astropy.io.fits import Header
@@ -69,6 +70,7 @@ class SIBase(CameraBase):
                   # WCS information
                   "parity_y" : 1., # Up is North
                   "parity_x" : 1., # Left is East
+                  "max_files": 10,
 
                   # ITEMS to be measured on the camera
                   "OUT1_SATUR": "100000.0",  # Output 1 saturation level (e-)
@@ -176,6 +178,9 @@ class SIBase(CameraBase):
 
         self._threadList = []
 
+        self._tmpFilesProxyQueue = Queue()
+        self._finalFilesProxyQueue = Queue()
+
     def __start__(self):
         self.open()
         self.log.info("retrieving information from camera...")
@@ -198,6 +203,23 @@ class SIBase(CameraBase):
             if not self._threadList[i].isAlive():
                 self._threadList.pop(i)
 
+        try:
+            if self._tmpFilesProxyQueue.qsize() > self["max_files"]:
+                for i in range(self["max_files"]):
+                    proxy = self._tmpFilesProxyQueue.get()
+                    self.log.debug("Closing temporary file...")
+                    proxy.close()
+        except:
+            self.log.error("Error trying to empty image queue.")
+
+        try:
+            if self._finalFilesProxyQueue.qsize() > self["max_files"]:
+                for i in range(self["max_files"]):
+                    proxy = self._tmpFilesProxyQueue.get()
+                    self.log.debug("Closing final file...")
+                    proxy.close()
+        except:
+            self.log.error("Error trying to empty image queue.")
 
     @lock
     def open(self):
@@ -709,6 +731,7 @@ class SIBase(CameraBase):
                 p = threading.Thread(target=self._finishHeader, args=(imageRequest, self.__lastFrameStart, filename, path, extraHeaders))
                 self._threadList.append(p)
                 p.start()
+                self._tmpFilesProxyQueue.put(proxy)
             else:
                 proxy = self._finishHeader(imageRequest,self.__lastFrameStart,filename,path,extraHeaders)
 
@@ -885,8 +908,9 @@ class SIBase(CameraBase):
         img = Image.fromFile(os.path.join(path,
                                  filename.replace('.FIT','.fits')))
         # server.register(img)
-
-        return server.register(img)
+        proxy = server.register(img)
+        self._finalFilesProxyQueue.put(proxy)
+        return proxy
 
     def _processHeader(self, header):
 
