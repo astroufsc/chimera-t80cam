@@ -224,6 +224,8 @@ class SIBase(CameraBase):
         except:
             self.log.error("Error trying to empty image queue.")
 
+        return True
+
     @lock
     def open(self):
         """
