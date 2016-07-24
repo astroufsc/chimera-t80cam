@@ -188,7 +188,7 @@ class SIBase(CameraBase):
         self.get_config()
         self.get_camera_settings()
         self.setHz(1.0 / 30.0)
-        
+
     def __stop__(self):
         try:
             # self.stopFan()
@@ -204,11 +204,13 @@ class SIBase(CameraBase):
             if not self._threadList[i].isAlive():
                 self._threadList.pop(i)
 
+        self.log.debug("[control] Proxy queue sizes: %i %i" % (self._tmpFilesProxyQueue.qsize(),
+                                                               self._finalFilesProxyQueue.qsize()))
         try:
             if self._tmpFilesProxyQueue.qsize() > self["max_files"]:
                 for i in range(self["max_files"]):
                     proxy = self._tmpFilesProxyQueue.get()
-                    self.log.debug("Closing temporary file...")
+                    self.log.debug("[control] Closing temporary file...")
                     proxy.close()
         except:
             self.log.error("Error trying to empty image queue.")
@@ -217,7 +219,7 @@ class SIBase(CameraBase):
             if self._finalFilesProxyQueue.qsize() > self["max_files"]:
                 for i in range(self["max_files"]):
                     proxy = self._tmpFilesProxyQueue.get()
-                    self.log.debug("Closing final file...")
+                    self.log.debug("[control] Closing final file...")
                     proxy.close()
         except:
             self.log.error("Error trying to empty image queue.")
