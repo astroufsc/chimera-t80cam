@@ -210,7 +210,7 @@ class SIBase(CameraBase):
             if self._tmpFilesProxyQueue.qsize() > self["max_files"]:
                 for i in range(self["max_files"]):
                     proxy = self._tmpFilesProxyQueue.get()
-                    self.log.debug("[control] Closing temporary file...")
+                    self.log.debug("[control] Closing temporary file %s ..." % proxy.filename())
                     proxy.close()
         except:
             self.log.error("Error trying to empty image queue.")
@@ -218,8 +218,8 @@ class SIBase(CameraBase):
         try:
             if self._finalFilesProxyQueue.qsize() > self["max_files"]:
                 for i in range(self["max_files"]):
-                    proxy = self._tmpFilesProxyQueue.get()
-                    self.log.debug("[control] Closing final file...")
+                    proxy = self._finalFilesProxyQueue.get()
+                    self.log.debug("[control] Closing final file %s ..." % proxy.filename())
                     proxy.close()
         except:
             self.log.error("Error trying to empty image queue.")
