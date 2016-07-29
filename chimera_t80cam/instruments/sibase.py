@@ -210,8 +210,9 @@ class SIBase(CameraBase):
             if self._tmpFilesProxyQueue.qsize() > self["max_files"]:
                 for i in range(self["max_files"]):
                     proxy = self._tmpFilesProxyQueue.get()
-                    self.log.debug("[control] Closing temporary file %s ..." % proxy.filename())
-                    proxy.close()
+                    self.log.debug("[control] Closing temporary file %s ..." % proxy[0].filename())
+                    self.log.debug("[control] Closing temporary file %s ..." % proxy[1])
+                    proxy[0].close()
         except:
             self.log.error("Error trying to empty image queue.")
 
@@ -219,8 +220,9 @@ class SIBase(CameraBase):
             if self._finalFilesProxyQueue.qsize() > self["max_files"]:
                 for i in range(self["max_files"]):
                     proxy = self._finalFilesProxyQueue.get()
-                    self.log.debug("[control] Closing final file %s ..." % proxy.filename())
-                    proxy.close()
+                    self.log.debug("[control] Closing final file %s ..." % proxy[0].filename())
+                    self.log.debug("[control] Closing final file %s ..." % proxy[1])
+                    proxy[0].close()
         except:
             self.log.error("Error trying to empty image queue.")
 
@@ -731,7 +733,7 @@ class SIBase(CameraBase):
             img = Image.fromFile(os.path.join(self['local_path'], filename))
 
             proxy = server.register(img)
-            self._tmpFilesProxyQueue.put(proxy)
+            self._tmpFilesProxyQueue.put([proxy,proxy.filename()])
             # proxy = self._finishHeader(imageRequest,self.__lastFrameStart,filename,path,extraHeaders)
             if self["fast_mode"]:
                 p = threading.Thread(target=self._finishHeader, args=(imageRequest, self.__lastFrameStart, filename, path, extraHeaders))
@@ -915,7 +917,7 @@ class SIBase(CameraBase):
                                  filename.replace('.FIT','.fits')))
         # server.register(img)
         proxy = server.register(img)
-        self._finalFilesProxyQueue.put(proxy)
+        self._finalFilesProxyQueue.put([proxy,proxy.filename()])
         return proxy
 
     def _processHeader(self, header):
