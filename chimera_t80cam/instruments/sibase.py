@@ -206,25 +206,26 @@ class SIBase(CameraBase):
 
         self.log.debug("[control] Proxy queue sizes: %i %i" % (self._tmpFilesProxyQueue.qsize(),
                                                                self._finalFilesProxyQueue.qsize()))
-        try:
-            if self._tmpFilesProxyQueue.qsize() > self["max_files"]:
-                for i in range(self["max_files"]/2):
-                    proxy = self._tmpFilesProxyQueue.get()
-                    self.log.debug("[control] Closing temporary file %s ..." % proxy[0].filename())
-                    # self.log.debug("[control] Closing temporary file %s ..." % proxy[1])
-                    proxy[0].close()
-        except:
-            self.log.error("Error trying to empty image queue.")
-
-        try:
-            if self._finalFilesProxyQueue.qsize() > self["max_files"]:
-                for i in range(self["max_files"]):
-                    proxy = self._finalFilesProxyQueue.get()
-                    self.log.debug("[control] Closing final file %s ..." % proxy[0].filename())
-                    # self.log.debug("[control] Closing final file %s ..." % proxy[1])
-                    proxy[0].close()
-        except:
-            self.log.error("Error trying to empty image queue.")
+        # try:
+        #     if self._tmpFilesProxyQueue.qsize() > self["max_files"]:
+        #         for i in range(self["max_files"]):
+        #             proxy = self._tmpFilesProxyQueue.get()
+        #             self.log.debug("[control] Closing temporary file %s ..." % proxy[0].filename())
+        #             # self.log.debug("[control] Closing temporary file %s ..." % proxy[1])
+        #
+        #             proxy[0].close()
+        # except:
+        #     self.log.error("Error trying to empty image queue.")
+        #
+        # try:
+        #     if self._finalFilesProxyQueue.qsize() > self["max_files"]:
+        #         for i in range(self["max_files"]):
+        #             proxy = self._finalFilesProxyQueue.get()
+        #             self.log.debug("[control] Closing final file %s ..." % proxy[0].filename())
+        #             # self.log.debug("[control] Closing final file %s ..." % proxy[1])
+        #             proxy[0].close()
+        # except:
+        #     self.log.error("Error trying to empty image queue.")
 
         return True
 
@@ -761,6 +762,26 @@ class SIBase(CameraBase):
         # return
 
     def _finishHeader(self, imageRequest, frameStart, filename, path, extraHeaders):
+
+        try:
+            if self._tmpFilesProxyQueue.qsize() > self["max_files"]:
+                for i in range(self["max_files"]):
+                    proxy = self._tmpFilesProxyQueue.get()
+                    self.log.debug("[control] Closing temporary file %s ..." % proxy[0].filename())
+                    # self.log.debug("[control] Closing temporary file %s ..." % proxy[1])
+                    proxy[0].close()
+        except:
+            self.log.error("Error trying to empty image queue.")
+
+        try:
+            if self._finalFilesProxyQueue.qsize() > self["max_files"]:
+                for i in range(self["max_files"]):
+                    proxy = self._finalFilesProxyQueue.get()
+                    self.log.debug("[control] Closing final file %s ..." % proxy[0].filename())
+                    # self.log.debug("[control] Closing final file %s ..." % proxy[1])
+                    proxy[0].close()
+        except:
+            self.log.error("Error trying to empty image queue.")
 
         hdu = pyfits.open(os.path.join(self['local_path'], filename), scale_back=True)
 
