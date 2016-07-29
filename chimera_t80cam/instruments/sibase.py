@@ -700,31 +700,42 @@ class SIBase(CameraBase):
             # self.releaseExposure()
             # self.unlockExposure()
 
-            hdu = pyfits.open(os.path.join(self['local_path'], self['local_filename']),
-                              ignore_missing_end = True,
-                              scale_back=True)
+            def cleanHeader(scale_back):
+                hdu = pyfits.open(os.path.join(self['local_path'], self['local_filename']),
+                                  ignore_missing_end = True,
+                                  scale_back=scale_back)
 
-            extraHeaders = {'ccdtemp': hdu[0].header[self["ccdtemp"]],
-                           'itemp': hdu[0].header[self["instrumentTemperature"]],
-                           'exptime': float(hdu[0].header[self['exptime']]),
-                           }
+                extraHeaders = {'ccdtemp': hdu[0].header[self["ccdtemp"]],
+                               'itemp': hdu[0].header[self["instrumentTemperature"]],
+                               'exptime': float(hdu[0].header[self['exptime']]),
+                               }
 
-            self.log.debug('Excluding bad cards...')
-            badcards = self["bad_cards"].split(',')
+                self.log.debug('Excluding bad cards...')
+                badcards = self["bad_cards"].split(',')
 
-            for card in badcards:
-                self.log.debug('Removing card "%s" from header' % card)
-                hdu[0].header.remove(card)
+                for card in badcards:
+                    self.log.debug('Removing card "%s" from header' % card)
+                    hdu[0].header.remove(card)
 
-            # Save temporary image to local_path/night
-            # Create dir if necessary
-            # tmpdir = os.path.join(self['local_path'], os.path.split(path)[-1])
-            # if not os.path.exists(tmpdir):
-            #     os.mkdir(tmpdir)
-            #
-            # # Save temporary image
-            # hdu.writeto(os.path.join(tmpdir, filename))
-            hdu.writeto(os.path.join(self['local_path'], filename))
+                # Save temporary image to local_path/night
+                # Create dir if necessary
+                # tmpdir = os.path.join(self['local_path'], os.path.split(path)[-1])
+                # if not os.path.exists(tmpdir):
+                #     os.mkdir(tmpdir)
+                #
+                # # Save temporary image
+                # hdu.writeto(os.path.join(tmpdir, filename))
+                hdu.writeto(os.path.join(self['local_path'], filename))
+
+            try:
+                cleanHeader(True)
+            except MemoryError, e:
+                self.log.error("Could not save in scale_back mode. Trying with normal mode.")
+                self.log.exception(e)
+                cleanHeader(False)
+
+
+
             # From now on camera is ready to take new exposures, will return and move this to a different thread.
             self.log.debug('Registering image and creating proxy. PP')
             # register image on ImageServer
