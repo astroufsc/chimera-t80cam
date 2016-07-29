@@ -705,7 +705,10 @@ class SIBase(CameraBase):
                                   ignore_missing_end = True,
                                   scale_back=scale_back)
 
-
+                extraHeaders = {'ccdtemp': hdu[0].header[self["ccdtemp"]],
+                           'itemp': hdu[0].header[self["instrumentTemperature"]],
+                           'exptime': float(hdu[0].header[self['exptime']]),
+                           }
                 self.log.debug('Excluding bad cards...')
                 badcards = self["bad_cards"].split(',')
 
@@ -723,10 +726,7 @@ class SIBase(CameraBase):
                 # hdu.writeto(os.path.join(tmpdir, filename))
                 hdu.writeto(os.path.join(self['local_path'], filename))
 
-                return {'ccdtemp': hdu[0].header[self["ccdtemp"]],
-                           'itemp': hdu[0].header[self["instrumentTemperature"]],
-                           'exptime': float(hdu[0].header[self['exptime']]),
-                           }
+                return extraHeaders
 
             try:
                 extraHeaders = cleanHeader(True)
