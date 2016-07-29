@@ -208,7 +208,7 @@ class SIBase(CameraBase):
                                                                self._finalFilesProxyQueue.qsize()))
         try:
             if self._tmpFilesProxyQueue.qsize() > self["max_files"]:
-                for i in range(self["max_files"]):
+                for i in range(self["max_files"]/2):
                     proxy = self._tmpFilesProxyQueue.get()
                     self.log.debug("[control] Closing temporary file %s ..." % proxy[0].filename())
                     # self.log.debug("[control] Closing temporary file %s ..." % proxy[1])
