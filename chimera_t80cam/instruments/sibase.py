@@ -211,7 +211,7 @@ class SIBase(CameraBase):
                 for i in range(self["max_files"]):
                     proxy = self._tmpFilesProxyQueue.get()
                     self.log.debug("[control] Closing temporary file %s ..." % proxy[0].filename())
-                    self.log.debug("[control] Closing temporary file %s ..." % proxy[1])
+                    # self.log.debug("[control] Closing temporary file %s ..." % proxy[1])
                     proxy[0].close()
         except:
             self.log.error("Error trying to empty image queue.")
@@ -221,7 +221,7 @@ class SIBase(CameraBase):
                 for i in range(self["max_files"]):
                     proxy = self._finalFilesProxyQueue.get()
                     self.log.debug("[control] Closing final file %s ..." % proxy[0].filename())
-                    self.log.debug("[control] Closing final file %s ..." % proxy[1])
+                    # self.log.debug("[control] Closing final file %s ..." % proxy[1])
                     proxy[0].close()
         except:
             self.log.error("Error trying to empty image queue.")
@@ -752,6 +752,7 @@ class SIBase(CameraBase):
 
         hdu = pyfits.open(os.path.join(self['local_path'], filename), scale_back=True)
 
+        hdu[0].header.remove('CHM_ID')
         # self.log.debug('Excluding bad cards...')
         # badcards = self["bad_cards"].split(',')
         #
