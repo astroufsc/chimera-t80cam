@@ -731,12 +731,13 @@ class SIBase(CameraBase):
             img = Image.fromFile(os.path.join(self['local_path'], filename))
 
             proxy = server.register(img)
+            self._tmpFilesProxyQueue.put(proxy)
             # proxy = self._finishHeader(imageRequest,self.__lastFrameStart,filename,path,extraHeaders)
             if self["fast_mode"]:
                 p = threading.Thread(target=self._finishHeader, args=(imageRequest, self.__lastFrameStart, filename, path, extraHeaders))
                 self._threadList.append(p)
                 p.start()
-                self._tmpFilesProxyQueue.put(proxy)
+                # self._tmpFilesProxyQueue.put(proxy)
             else:
                 proxy = self._finishHeader(imageRequest,self.__lastFrameStart,filename,path,extraHeaders)
 
