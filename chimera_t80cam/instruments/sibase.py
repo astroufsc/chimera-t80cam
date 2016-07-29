@@ -700,15 +700,16 @@ class SIBase(CameraBase):
             # self.releaseExposure()
             # self.unlockExposure()
 
+            extraHeaders = {'ccdtemp': hdu[0].header[self["ccdtemp"]],
+                           'itemp': hdu[0].header[self["instrumentTemperature"]],
+                           'exptime': float(hdu[0].header[self['exptime']]),
+                           }
+
             def cleanHeader(scale_back):
                 hdu = pyfits.open(os.path.join(self['local_path'], self['local_filename']),
                                   ignore_missing_end = True,
                                   scale_back=scale_back)
 
-                extraHeaders = {'ccdtemp': hdu[0].header[self["ccdtemp"]],
-                               'itemp': hdu[0].header[self["instrumentTemperature"]],
-                               'exptime': float(hdu[0].header[self['exptime']]),
-                               }
 
                 self.log.debug('Excluding bad cards...')
                 badcards = self["bad_cards"].split(',')
