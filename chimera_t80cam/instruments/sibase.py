@@ -700,11 +700,6 @@ class SIBase(CameraBase):
             # self.releaseExposure()
             # self.unlockExposure()
 
-            extraHeaders = {'ccdtemp': hdu[0].header[self["ccdtemp"]],
-                           'itemp': hdu[0].header[self["instrumentTemperature"]],
-                           'exptime': float(hdu[0].header[self['exptime']]),
-                           }
-
             def cleanHeader(scale_back):
                 hdu = pyfits.open(os.path.join(self['local_path'], self['local_filename']),
                                   ignore_missing_end = True,
@@ -728,12 +723,17 @@ class SIBase(CameraBase):
                 # hdu.writeto(os.path.join(tmpdir, filename))
                 hdu.writeto(os.path.join(self['local_path'], filename))
 
+                return {'ccdtemp': hdu[0].header[self["ccdtemp"]],
+                           'itemp': hdu[0].header[self["instrumentTemperature"]],
+                           'exptime': float(hdu[0].header[self['exptime']]),
+                           }
+
             try:
-                cleanHeader(True)
+                extraHeaders = cleanHeader(True)
             except MemoryError, e:
                 self.log.error("Could not save in scale_back mode. Trying with normal mode.")
                 self.log.exception(e)
-                cleanHeader(False)
+                extraHeaders = cleanHeader(False)
 
 
 
