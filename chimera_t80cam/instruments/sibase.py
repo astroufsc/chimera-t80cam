@@ -214,10 +214,10 @@ class SIBase(CameraBase):
                 if self._cleanQueueLock.acquire(False):
                     try:
                         proxy = self._tmpFilesProxyQueue.get()
-                        self.log.debug("[control] Closing temporary file %s ..." % proxy[0].filename())
+                        self.log.debug("[control] Closing and removing temporary file %s ..." % proxy[0].filename())
                         # self.log.debug("[control] Closing temporary file %s ..." % proxy[1])
-
                         proxy[0].close()
+                        os.remove(proxy[1])
                     except Exception, e:
                         self.log.exception(e)
                     finally:
@@ -749,9 +749,8 @@ class SIBase(CameraBase):
             try:
                 extraHeaders = cleanHeader(True)
             except MemoryError, e:
-                self.log.error("Could not save in scale_back mode. Trying with normal mode.")
                 self.log.exception(e)
-                extraHeaders = cleanHeader(False)
+                raise
             finally:
                 self._cleanQueueLock.release()
 
