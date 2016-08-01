@@ -743,7 +743,7 @@ class SIBase(CameraBase):
                 # # Save temporary image
                 # hdu.writeto(os.path.join(tmpdir, filename))
                 hdu.writeto(os.path.join(self['local_path'], filename))
-
+                hdu.close()
                 return extraHeaders
 
             try:
