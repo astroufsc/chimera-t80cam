@@ -956,17 +956,23 @@ class SIBase(CameraBase):
         #                          filename.replace('.FIT','.fits')),
         #             output_verify='silentfix+warn',
         #             checksum=True)
+        fname = None
         try:
+            primhdu = pyfits.PrimaryHDU()
             compHDU = pyfits.CompImageHDU(data=hdu[0].data,
                                           header=hdu[0].header)
-            compHDU.writeto(os.path.join(path,
-                                     filename.replace('.FIT','.fits.fz')))
+            hdulist = pyfits.HDUList([primhdu,
+                                      compHDU])
+            fname = os.path.join(path,
+                                     filename.replace('.FIT','.fits.fz'))
+            self.log.debug('Writing %s ...' % fname)
+            hdulist.writeto(fname)
         except Exception, e:
             self.log.exception(e)
-            hdu.writeto(os.path.join(path,
-                                     filename.replace('.FIT','.fits.fz')),
-                        output_verify='silentfix+warn',
-                        checksum=True)
+            fname = os.path.join(path,
+                                     filename.replace('.FIT','.fits'))
+            self.log.debug('Writing %s ...' % fname)
+            hdu.writeto(fname)
         hdu.close()
 
 
@@ -975,8 +981,7 @@ class SIBase(CameraBase):
         self.log.debug('Registering image and creating proxy')
         # register image on ImageServer
         server = getImageServer(self.getManager())
-        img = Image.fromFile(os.path.join(path,
-                                 filename.replace('.FIT','.fits.fz')))
+        img = Image.fromFile(fname)
         # server.register(img)
         proxy = server.register(img)
         self._finalFilesProxyQueue.put([proxy,proxy.filename()])
