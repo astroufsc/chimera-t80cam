@@ -964,7 +964,8 @@ class SIBase(CameraBase):
             hdulist = pyfits.HDUList([primhdu,
                                       compHDU])
             fname = os.path.join(path,
-                                     filename.replace('.FIT','.fits.fz'))
+                                     filename).rsplit('.')[0]
+            fname += '.fits.fz'
             self.log.debug('Writing %s ...' % fname)
             hdulist.writeto(fname)
         except Exception, e:
