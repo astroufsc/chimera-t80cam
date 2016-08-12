@@ -952,19 +952,23 @@ class SIBase(CameraBase):
             hdu[0].header.set(*card)
 
         self.log.debug('Writting new fits to disk')
-        try:
-            compHDU = pyfits.CompImageHDU(data=hdu[0].data,
-                                          header=hdu[0].header)
-            compHDU.writeto(os.path.join(path,
-                                     filename.replace('.FIT','.fits.fz')),
-                        output_verify='silentfix+warn',
-                        checksum=True)
-        except Exception, e:
-            self.log.exception(e)
-            hdu.writeto(os.path.join(path,
-                                     filename.replace('.FIT','.fits.fz')),
-                        output_verify='silentfix+warn',
-                        checksum=True)
+        hdu.writeto(os.path.join(path,
+                                 filename.replace('.FIT','.fits')),
+                    output_verify='silentfix+warn',
+                    checksum=True)
+        # try:
+        #     compHDU = pyfits.CompImageHDU(data=hdu[0].data,
+        #                                   header=hdu[0].header)
+        #     compHDU.writeto(os.path.join(path,
+        #                              filename.replace('.FIT','.fits.fz')),
+        #                 output_verify='silentfix+warn',
+        #                 checksum=True)
+        # except Exception, e:
+        #     self.log.exception(e)
+        #     hdu.writeto(os.path.join(path,
+        #                              filename.replace('.FIT','.fits.fz')),
+        #                 output_verify='silentfix+warn',
+        #                 checksum=True)
         hdu.close()
 
 
