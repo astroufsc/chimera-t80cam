@@ -720,8 +720,8 @@ class SIBase(CameraBase):
 
             def cleanHeader(scale_back):
                 hdu = pyfits.open(os.path.join(self['local_path'], self['local_filename']),
-                                  ignore_missing_end = True,
-                                  scale_back=scale_back)
+                                  ignore_missing_end = True) #,
+                                  # scale_back=scale_back)
 
                 extraHeaders = {'ccdtemp': hdu[0].header[self["ccdtemp"]],
                            'itemp': hdu[0].header[self["instrumentTemperature"]],
