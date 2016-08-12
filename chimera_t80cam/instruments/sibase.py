@@ -960,9 +960,7 @@ class SIBase(CameraBase):
             compHDU = pyfits.CompImageHDU(data=hdu[0].data,
                                           header=hdu[0].header)
             compHDU.writeto(os.path.join(path,
-                                     filename.replace('.FIT','.fits.fz')),
-                        output_verify='silentfix+warn',
-                        checksum=True)
+                                     filename.replace('.FIT','.fits.fz')))
         except Exception, e:
             self.log.exception(e)
             hdu.writeto(os.path.join(path,
