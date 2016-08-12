@@ -957,36 +957,43 @@ class SIBase(CameraBase):
         #             output_verify='silentfix+warn',
         #             checksum=True)
         fname = None
-        try:
-            primhdu = pyfits.PrimaryHDU()
-            compHDU = pyfits.CompImageHDU(data=hdu[0].data,
-                                          header=hdu[0].header)
-            hdulist = pyfits.HDUList([primhdu,
-                                      compHDU])
-            fname = os.path.join(path,
-                                     filename).rsplit('.')[0]
-            fname += '.fits.fz'
-            self.log.debug('Writing %s ...' % fname)
-            hdulist.writeto(fname)
-        except Exception, e:
-            self.log.exception(e)
+        if self["fast_mode"]:
+            try:
+                primhdu = pyfits.PrimaryHDU()
+                compHDU = pyfits.CompImageHDU(data=hdu[0].data,
+                                              header=hdu[0].header)
+                hdulist = pyfits.HDUList([primhdu,
+                                          compHDU])
+                fname = os.path.join(path,
+                                         filename).rsplit('.')[0]
+                fname += '.fits.fz'
+                self.log.debug('Writing %s ...' % fname)
+                hdulist.writeto(fname)
+            except Exception, e:
+                self.log.exception(e)
+                fname = os.path.join(path,
+                                         filename.replace('.FIT','.fits'))
+                self.log.debug('Writing %s ...' % fname)
+                hdu.writeto(fname)
+            hdu.close()
+            return None
+        else:
             fname = os.path.join(path,
                                      filename.replace('.FIT','.fits'))
             self.log.debug('Writing %s ...' % fname)
             hdu.writeto(fname)
-        hdu.close()
-
+            hdu.close()
 
         # self.log.debug('Header complete')
 
-        self.log.debug('Registering image and creating proxy')
-        # register image on ImageServer
-        server = getImageServer(self.getManager())
-        img = Image.fromFile(fname)
-        # server.register(img)
-        proxy = server.register(img)
-        self._finalFilesProxyQueue.put([proxy,proxy.filename()])
-        return proxy
+            self.log.debug('Registering image and creating proxy')
+            # register image on ImageServer
+            server = getImageServer(self.getManager())
+            img = Image.fromFile(fname)
+            # server.register(img)
+            proxy = server.register(img)
+            self._finalFilesProxyQueue.put([proxy,proxy.filename()])
+            return proxy
 
     def _processHeader(self, header):
 
