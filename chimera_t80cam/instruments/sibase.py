@@ -952,11 +952,14 @@ class SIBase(CameraBase):
             hdu[0].header.set(*card)
 
         self.log.debug('Writting new fits to disk')
-        hdu.writeto(os.path.join(path,
-                                 filename.replace('.FIT','.fits')),
+        compHDU = pyfits.CompImageHDU(data=hdu[0].data,
+                                      header=hdu[0].header)
+        compHDU.writeto(os.path.join(path,
+                                 filename.replace('.FIT','.fits.fz')),
                     output_verify='silentfix+warn',
                     checksum=True)
         hdu.close()
+
 
         self.log.debug('Header complete')
 
@@ -964,7 +967,7 @@ class SIBase(CameraBase):
         # register image on ImageServer
         server = getImageServer(self.getManager())
         img = Image.fromFile(os.path.join(path,
-                                 filename.replace('.FIT','.fits')))
+                                 filename.replace('.FIT','.fits.fz')))
         # server.register(img)
         proxy = server.register(img)
         self._finalFilesProxyQueue.put([proxy,proxy.filename()])
