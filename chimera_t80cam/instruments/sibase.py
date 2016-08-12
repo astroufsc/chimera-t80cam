@@ -799,7 +799,7 @@ class SIBase(CameraBase):
         # except:
         #     self.log.error("Error trying to empty image queue.")
 
-        hdu = pyfits.open(os.path.join(self['local_path'], filename), scale_back=True)
+        hdu = pyfits.open(os.path.join(self['local_path'], filename)) #, scale_back=True)
 
         hdu[0].header.remove('CHM_ID')
         # self.log.debug('Excluding bad cards...')
