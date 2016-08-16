@@ -421,6 +421,19 @@ class SIBase(CameraBase):
         return float(ttpl[self.getCurrentCCD()])
 
     @lock
+    def getPressure(self):
+        ttpl = list()
+        try:
+            self.get_status()
+        except:
+            self.log.warning('Could not update camera temperature.')
+        for i in range(len(self.stats)):
+            self.log.debug('%s = %s' %(self.stats[i][0],self.stats[i][1]) )
+            # if "CCD Temp." in self.stats[i][0]:
+            #     ttpl.append(self.stats[i][1].replace(',', '.'))
+        return 0. # float(ttpl[self.getCurrentCCD()])
+
+    @lock
     def getSetPoint(self):
         """
         Return the CCD(s) temperature set point.
