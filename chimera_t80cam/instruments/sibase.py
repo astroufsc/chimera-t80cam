@@ -24,6 +24,7 @@ from chimera.util.image import Image, ImageUtil
 from chimera.instruments.camera import CameraBase
 from chimera.util.enum import Enum
 from chimera.core.lock import lock
+from chimera.core.rwlock import ReadWriteLock
 from chimera.core.exceptions import ChimeraException
 from chimera.core.version import _chimera_name_, _chimera_long_description_
 from chimera.controllers.imageserver.util import getImageServer
@@ -161,6 +162,9 @@ class SIBase(CameraBase):
 
         self._adcs = {"12 bits": 0}  # Check
 
+        self._temperature = None
+        self._pressure = None
+
         countBinns = count(0)
         self._binnings = defaultdict(countBinns.next)
 
@@ -179,6 +183,7 @@ class SIBase(CameraBase):
         self._threadList = []
 
         self._cleanQueueLock = threading.Lock()
+        self._updateInfos = ReadWriteLock()
         self._tmpFilesProxyQueue = Queue.Queue()
         self._finalFilesProxyQueue = Queue.Queue()
 
@@ -204,6 +209,9 @@ class SIBase(CameraBase):
         for i in range(len(self._threadList)-1,-1,-1):
             if not self._threadList[i].isAlive():
                 self._threadList.pop(i)
+
+        self.log.debug("[control] Updating camera status.")
+        self.get_status()
 
         self.log.debug("[control] Proxy queue sizes: %i %i" % (self._tmpFilesProxyQueue.qsize(),
                                                                self._finalFilesProxyQueue.qsize()))
@@ -335,12 +343,33 @@ class SIBase(CameraBase):
             Generates an instance list of lists containing name,value,unit
              strings.
         """
-        client = self.getClient()
-        lines = client.executeCommand(
-            GetStatusFromCamera()).statuslist.splitlines()
-        self.stats = []
-        for i in range(len(lines)):
-            self.stats += [re.split(',(.+),', lines[i])]
+        try:
+            self._updateInfos.acquireWrite()
+
+            client = self.getClient()
+            lines = client.executeCommand(
+                GetStatusFromCamera()).statuslist.splitlines()
+            self.stats = []
+            for i in range(len(lines)):
+                self.stats += [re.split(',(.+),', lines[i])]
+
+            ttpl = list()
+            for i in range(len(self.stats)):
+                if "CCD Temp." in self.stats[i][0]:
+                    ttpl.append(self.stats[i][1].replace(',', '.'))
+            self._temperature = float(ttpl[self.getCurrentCCD()])
+
+            ttpl = list()
+
+            for i in range(len(self.stats)):
+                # self.log.debug('%s = %s' %(self.stats[i][0],self.stats[i][1]) )
+                if "Chamber Pressure" in self.stats[i][0]:
+                    ttpl.append(self.stats[i][1].replace(',', '.'))
+            self._pressure = float(ttpl[self.getCurrentCCD()])
+        except:
+            self.log.warning('Could not update camera status.')
+        finally:
+            self._updateInfos.release()
 
     @lock
     def get_camera_settings(self):
@@ -408,30 +437,25 @@ class SIBase(CameraBase):
     def isFanning(self):
         return False
 
-    @lock
     def getTemperature(self):
-        ttpl = list()
         try:
-            self.get_status()
+            self._updateInfos.acquireRead()
+            rval = self._temperature
+            return rval
         except:
-            self.log.warning('Could not update camera temperature.')
-        for i in range(len(self.stats)):
-            if "CCD Temp." in self.stats[i][0]:
-                ttpl.append(self.stats[i][1].replace(',', '.'))
-        return float(ttpl[self.getCurrentCCD()])
+            return -999.
+        finally:
+            self._updateInfos.release()
 
-    @lock
     def getPressure(self):
-        ttpl = list()
         try:
-            self.get_status()
+            self._updateInfos.acquireRead()
+            rval = self._pressure
+            return rval
         except:
-            self.log.warning('Could not update camera temperature.')
-        for i in range(len(self.stats)):
-            # self.log.debug('%s = %s' %(self.stats[i][0],self.stats[i][1]) )
-            if "Chamber Pressure" in self.stats[i][0]:
-                ttpl.append(self.stats[i][1].replace(',', '.'))
-        return float(ttpl[self.getCurrentCCD()])
+            return -999.
+        finally:
+            self._updateInfos.release()
 
     @lock
     def getSetPoint(self):
