@@ -664,6 +664,7 @@ class SIBase(CameraBase):
         client = self.getClient()
         if self.abort.isSet():
             self.readoutComplete(None, CameraStatus.ABORTED)
+            self._cleanQueueLock.release()
             return None
 
             # status = CameraStatus.ABORTED
@@ -707,6 +708,7 @@ class SIBase(CameraBase):
        # LAST ABORT POINT
         if self.abort.isSet():
             self.readoutComplete(None, CameraStatus.ABORTED)
+            self._cleanQueueLock.release()
             return None
 
         if not self["localhost"]:
@@ -717,6 +719,7 @@ class SIBase(CameraBase):
             pix = N.array(img_buffer, dtype=N.uint16)
 
             if len(pix) != width * height:
+                self._cleanQueueLock.release()
                 raise SIException("Wrong image size. Expected %i x %i (%i), got %i" % (width,
                                                                                      height,
                                                                                      width *
@@ -744,6 +747,7 @@ class SIBase(CameraBase):
 
             if imageRequest:
                 if not "filename" in imageRequest.keys():
+                    self._cleanQueueLock.release()
                     raise TypeError("Invalid filename, you must pass filename=something or a valid ImageRequest object")
                 else:
                     filename = imageRequest["filename"]
