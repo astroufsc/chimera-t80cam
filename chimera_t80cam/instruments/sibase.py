@@ -783,6 +783,7 @@ class SIBase(CameraBase):
                 #
                 # # Save temporary image
                 # hdu.writeto(os.path.join(tmpdir, filename))
+                self.log.debug('Writting file to local disk: %s' % filename)
                 hdu.writeto(os.path.join(self['local_path'], filename))
                 hdu.close()
                 return extraHeaders
@@ -1029,7 +1030,7 @@ class SIBase(CameraBase):
             hdulist.append(primary_hdu)
 
             self.log.debug('FITS_RICE compression requested...')
-            fname = fname + ".fz"
+            fname = os.path.join(self['local_path'], filename) + ".fz" #fname + ".fz"
             img = pyfits.CompImageHDU(data=hdu[0].data, compression_type='RICE_1')
             hdulist.append(img)
             self.log.debug('Writing %s ...' % fname)
