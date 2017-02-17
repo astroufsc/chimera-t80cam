@@ -795,7 +795,7 @@ class SIBase(CameraBase):
             finally:
                 self._cleanQueueLock.release()
 
-            # From now on camera is ready to take new exposures, will return and move this to a different thread.
+            # From now on camera is ready to take new exposures, will return and finish header on a different thread
             self.log.debug('Registering image and creating proxy. PP')
             # register image on ImageServer
             server = getImageServer(self.getManager())
@@ -1020,8 +1020,14 @@ class SIBase(CameraBase):
         #     return None
         # else:
         fname = os.path.join(path,
-                                 filename.replace('.FIT','.fits'))
+                             filename.replace('.FIT',
+                                              '.fits')) if imageRequest[
+                                                               'compress_format'].lower() == 'no' else os.path.join(
+            path,
+            filename.replace('.FIT',
+                             '.fits.fz'))
         self.log.debug('Writing %s ...' % fname)
+
         hdu.writeto(fname)
         hdu.close()
 
