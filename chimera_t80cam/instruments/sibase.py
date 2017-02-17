@@ -183,6 +183,7 @@ class SIBase(CameraBase):
         self._threadList = []
 
         self._cleanQueueLock = threading.Lock()
+        self._WriteCompressedFile = threading.Lock()
         self._updateInfos = ReadWriteLock()
         self._tmpFilesProxyQueue = Queue.Queue()
         self._finalFilesProxyQueue = Queue.Queue()
@@ -1034,7 +1035,9 @@ class SIBase(CameraBase):
             img = pyfits.CompImageHDU(data=hdu[0].data, compression_type='RICE_1')
             hdulist.append(img)
             self.log.debug('Writing %s ...' % fname)
+            self._WriteCompressedFile.acquire()
             hdulist.writeto(fname, checksum=True)
+            self._WriteCompressedFile.release()
             hdu.close()
             return None
         else:
