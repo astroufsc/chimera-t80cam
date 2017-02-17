@@ -1019,18 +1019,24 @@ class SIBase(CameraBase):
         #     hdu.close()
         #     return None
         # else:
-        self.log.debug('Requested compression is %s' % imageRequest['compress_format'])
         fname = os.path.join(path,
                              filename.replace('.FIT',
-                                              '.fits')) + '.fz'
-        self.log.debug('Writing %s ...' % fname)
+                                              '.fits'))
 
-        hdu.writeto(fname)
+        if imageRequest['compress_format'] == 'fits_rice':
+            self.log.debug('FITS_RICE compression requested...')
+            fname = fname + ".fz"
+            img = pyfits.CompImageHDU(data=hdu[0].data, header=hdu[0].header, compression_type='RICE_1')
+            self.log.debug('Writing %s ...' % fname)
+            img.writeto(fname, checksum=True)
+        else:
+            self.log.debug('Writing %s ...' % fname)
+            hdu.writeto(fname)
         hdu.close()
 
-        self.log.debug('Header complete')
-
-        self.log.debug('Registering image and creating proxy')
+        # self.log.debug('Header complete')
+        #
+        # self.log.debug('Registering image and creating proxy')
         # register image on ImageServer
         server = getImageServer(self.getManager())
         img = Image.fromFile(fname)
