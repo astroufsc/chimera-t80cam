@@ -46,6 +46,7 @@ class FSUFilterWheel(FSUConn, FSUFWheels):
             if time.time()-start_time > self.timeout:
                 raise FilterPositionFailure("Could not set filter position.")
             time.sleep(0.1)
+        self.log.debug('Filter position: %s/%s/%s'%(self.get_req_pos(), filterpos,self._vread0.read()))
         # Move it
         self._vread1.write(self._vread1.read() ^ 1)
         self.log.debug('VREAD1 {0}'.format(self._vread1.read()))
