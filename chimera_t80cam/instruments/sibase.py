@@ -1033,7 +1033,7 @@ class SIBase(CameraBase):
             img = pyfits.CompImageHDU(data=hdu[0].data, compression_type='RICE_1')
             hdulist.append(img)
             self.log.debug('Writing %s ...' % fname)
-            hdulist.writeto(fname, checksum=True, output_verify='fix')
+            hdulist.writeto(fname, checksum=True, output_verify='ignore')
         else:
             self.log.debug('Writing %s ...' % fname)
             hdu.writeto(fname)
