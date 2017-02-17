@@ -1031,7 +1031,7 @@ class SIBase(CameraBase):
             hdulist.append(primary_hdu)
 
             self.log.debug('FITS_RICE compression requested...')
-            fname = os.path.join(self['local_path'], filename) + ".fz" #fname + ".fz"
+            fname = fname + ".fz"
             img = pyfits.CompImageHDU(data=hdu[0].data, compression_type='RICE_1')
             hdulist.append(img)
             self.log.debug('Writing %s ...' % fname)
