@@ -1019,13 +1019,10 @@ class SIBase(CameraBase):
         #     hdu.close()
         #     return None
         # else:
+        self.log.debug('Requested compression is %s' % imageRequest['compress_format'])
         fname = os.path.join(path,
                              filename.replace('.FIT',
-                                              '.fits')) if imageRequest[
-                                                               'compress_format'].lower() == 'no' else os.path.join(
-            path,
-            filename.replace('.FIT',
-                             '.fits.fz'))
+                                              '.fits.fz')) 
         self.log.debug('Writing %s ...' % fname)
 
         hdu.writeto(fname)
