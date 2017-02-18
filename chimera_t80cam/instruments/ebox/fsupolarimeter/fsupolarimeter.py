@@ -54,16 +54,15 @@ class FsuPolarimeter(FilterWheelBase):
 
     def setFilter(self, filters):
         f = filters.split(',')
-        for wheel_num in range(self.nwheels):
-            # Todo: Check that filter is in the list
-            self._wheels[wheel_num].setFilter(f[wheel_num])
+        for wheel_num, wheel in enumerate(self._wheels):
+            self.fwhl[int(self._wheels[wheel_num]['id'])](f[wheel_num])
+
         return True
 
     def getFilter(self):
         filters = ""
 
         for wheel_num, wheel in enumerate(self._wheels):
-            print self._wheels[wheel_num]['id']
             filters += "," + self._wheels[wheel_num].getFilters()[self.fwhl.get_pos(int(self._wheels[wheel_num]['id']))]
 
         return filters[1:]

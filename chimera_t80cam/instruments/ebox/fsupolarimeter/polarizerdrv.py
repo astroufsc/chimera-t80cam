@@ -138,7 +138,7 @@ class FSUPolDriver(FSUConn, FSUFWheels):
         """
         vread1 = self.setup_wheel(wheel)
 
-        return vread1[0].read()
+        return vread1[1].read()
 
     def __getitem__(self, item):
         """
