@@ -34,7 +34,6 @@ class FSUPolDriver(FSUConn, FSUFWheels):
         """
 
         if wheel == 0:
-            self.log.debug('Selecting Filter wheel')
             vread1 = self._vread1
             vread2 = self._vread2
             #get_required_pos = self.get_required_pos_fw
@@ -43,7 +42,6 @@ class FSUPolDriver(FSUConn, FSUFWheels):
             enable_bit = None
             req_pos = self._wPOS_REQU_T80_POL_BOX_FILTER_WHEEL1
         elif wheel == 1:
-            self.log.debug('Selecting Analyser wheel')
             vread1 = self._vread1
             vread2 = self._vread3
             #get_required_pos = self.get_required_pos_aw
@@ -52,7 +50,6 @@ class FSUPolDriver(FSUConn, FSUFWheels):
             enable_bit = None
             req_pos = self._wPOS_REQU_T80_POL_BOX_FILTER_WHEEL2
         elif wheel == 2:
-            self.log.debug('Selecting Wave plate')
             vread1 = self._vread10
             vread2 = self._vread12
             #get_required_pos = self.get_required_pos_wp
@@ -61,7 +58,6 @@ class FSUPolDriver(FSUConn, FSUFWheels):
             enable_bit = 1
             req_pos = self._wPOS_REQU_T80_POL_BOX_FILTER
         elif wheel == 3:
-            self.log.debug('Selecting Polarimeter analyser')
             vread1 = self._vread20
             vread2 = self._vread22
             #get_required_pos = self.get_required_pos_pa
@@ -101,9 +97,10 @@ class FSUPolDriver(FSUConn, FSUFWheels):
         if (vread1.read() & stop_movement_bit) != 0:
             vread1.write(vread1.read() & ~stop_movement_bit)
 
-        # check if enable bit is set, if so, make sure wheel is enable
+        # check if enable bit is set, if not, make sure wheel is enable
         if enable_bit is not None and (vread1.read() & enable_bit) == 0:
-            vread1.write(vread1.read() ^ enable_bit)
+            self.log.debug('Enabling wheel')
+            vread1.write(enable_bit)
 
         self.log.debug('VREAD {0}'.format(vread1.read()))
 
@@ -119,7 +116,7 @@ class FSUPolDriver(FSUConn, FSUFWheels):
             if time.time()-start_time > self.timeout:
                 raise FilterPositionFailure("Could not set filter position.")
             # Todo: Check for errors
-            time.sleep(0.1)
+            time.sleep(0.5)
         self.log.debug('Filter position: %s/%s' % (get_required_pos.read(), filterpos))
 
         # Move it
