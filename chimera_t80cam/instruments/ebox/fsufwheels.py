@@ -17,11 +17,27 @@ class FSUFWheels():
         # CAM filter wheel position request vector
         self._wPOS_REQ = ads_var_single(
             self.conn, '.wPOSITIONING_REQUESTED_T80_CAM_BOX', 'i')
+
+        self._wPOS_REQU_T80_POL_BOX_FILTER_WHEEL1 = ads_var_single(
+            self.conn, '.wPOSITIONING_REQUESTED_T80_POL_BOX_FILTER_WHEEL1', 'i')
+
+        self._wPOS_REQU_T80_POL_BOX_FILTER_WHEEL2 = ads_var_single(
+            self.conn, '.wPOSITIONING_REQUESTED_T80_POL_BOX_FILTER_WHEEL1', 'i')
+
+        self._wPOS_REQU_T80_POL_BOX_WHEEL = ads_var_single(
+            self.conn, '.wPOSITIONING_REQUESTED_T80_POL_BOX_WHEEL', 'i')
+
+        self._wPOS_REQU_T80_POL_BOX_FILTER = ads_var_single(
+            self.conn, '.wPOSITIONING_REQUESTED_T80_POL_BOX_FILTER', 'i')
+
         # CAM filter wheels stop motion request vector (bit)
         # self._bSTOP_REQ = ads_var_single(
         # self.conn, '.bSTOP_POSITIONING_REQUESTED_FILTERS_WHEEL', 'b')
         # CAM/POL filter wheels commands vector
         self._vread1 = ads_var_single(self.conn, '.wDWORD_READ[1]', 'i')
+        self._vread2 = ads_var_single(self.conn, '.wDWORD_READ[2]', 'i')
+        self._vread2 = ads_var_single(self.conn, '.wDWORD_READ[2]', 'i')
+        self._vread3 = ads_var_single(self.conn, '.wDWORD_READ[3]', 'i')
         self._vread10 = ads_var_single(self.conn, '.wDWORD_READ[10]', 'i')
         self._vread11 = ads_var_single(self.conn, '.wDWORD_READ[11]', 'i')
         self._vread12 = ads_var_single(self.conn, '.wDWORD_READ[12]', 'i')
@@ -31,5 +47,7 @@ class FSUFWheels():
         # CAM filter wheels status vectors
         self._vwrite0 = ads_var_single(self.conn, '.wDWORD_WRITE[0]', 'i')
         self._vwrite1 = ads_var_single(self.conn, '.wDWORD_WRITE[1]', 'i')
+        self._vwrite2 = ads_var_single(self.conn, '.wDWORD_WRITE[2]', 'i')
+        self._vwrite3 = ads_var_single(self.conn, '.wDWORD_WRITE[3]', 'i')
         self._vwrite10 = ads_var_single(self.conn, '.wDWORD_WRITE[10]', 'i')
         self._vwrite20 = ads_var_single(self.conn, '.wDWORD_WRITE[20]', 'i')

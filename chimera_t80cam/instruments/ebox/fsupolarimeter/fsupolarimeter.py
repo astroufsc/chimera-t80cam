@@ -1,13 +1,13 @@
 import threading
 import time
 import logging
-
+import itertools
 # from chimera.core.event import event
 from chimera.core.lock import lock
 
 from chimera.instruments.filterwheel import FilterWheelBase
-
-from chimera.instruments.ebox.fsupolarimeter.polarizerdrv import FSUPolDriver
+from chimera_t80cam.instruments.ebox.fsuexceptions import FilterPositionFailure, FSUInitializationException
+from chimera_t80cam.instruments.ebox.fsupolarimeter.polarizerdrv import FSUPolDriver
 
 log = logging.Logger(__name__)
 
@@ -18,73 +18,57 @@ class FsuPolarimeter(FilterWheelBase):
     """
 
     __config__ = dict(
-        polarimeter_model="Solunia",
-        waitMoveStart=0.5
-    )
+        filter_wheel_model="Solunia",
+        waitMoveStart=0.5,
+        plc_ams_id="5.18.26.30.1.1",
+        plc_ams_port=801,
+        plc_ip_adr="192.168.100.1",
+        plc_ip_port=48898,
+        pc_ams_id="5.18.26.31.1.1",
+        pc_ams_port=32788,
+        plc_timeout=5,
+        device=None)
 
     def __init__(self):
         """Constructor."""
         FilterWheelBase.__init__(self)
-        # Get me the polarizer wheel.
-        self.pwhl = FSUPolDriver()
+        # Get me the filter wheel.
         self._abort = threading.Event()
-        print("Polarimeter acquired")
+        self.fwhl = None
+
+    def __start__(self):
+        self.open()
+        self._wheels = [self.getManager().getProxy(wheel, lazy=True) for wheel in self["device"].split(',')]
+        for wheel in self._wheels:
+            wheel.fwhl = self.fwhl
+        filters = [wheel["filters"].split() for wheel in self._wheels]
+        self["filters"] = ' '.join([','.join(comb) for comb in itertools.product(*filters)])
+
 
     def __stop__(self):
         self.stopWheel()
 
-    def stopWheel(self):
-        print('Abort requested')
-        self._abort.set()
-        self.pwhl.stop_calpol()
-
     @lock
-    def setFilter(self, filt):
-        """
-        Set the current filter.
+    def open(self):
+        return self.connectTWC()
 
-        .. method:: setFilter(filt)
-            Sets the filter wheel(s) to the position defined for the filter
-            name.
-            :param str filt: Name of the filter to use.
-        """
-        self._abort.clear()
-        # Set wheels in motion.
-        self.pwhl.move_calpol_pos(self._getFilterPosition(filt))
-        # This call returns immediately, hence loop for an abort request.
-        time.sleep(self["waitMoveStart"])
-        timeout = 0
-        while not (self.pwhl.fwheel_is_moving() and
-                   self.pwhl.awheel_is_moving()):
-            time.sleep(0.1)
-            if self._abort.isSet():
-                break
-            if timeout > 250:
-                # Longer than 25s have passed; something is wrong...
-                self.pwhl.check_hw()
+    def setFilter(self, filters):
+        f = filters.split(',')
+        for wheel_num in range(self.nwheels):
+            # Todo: Check that filter is in the list
+            self._wheels[wheel_num].setFilter(f[wheel_num])
+        return True
 
     def getFilter(self):
-        """
-        Return the current filter.
+        filters = ""
+        for wheel_num, wheel in enumerate(self._wheels):
+            filters += "," + self._wheels[wheel_num].getFilter()
+        return filters[1:]
 
-        .. method:: getFilter()
-            Return the current filter position (by name).
-        :return: Current filter.
-        :rtype: int.
-        """
-        return self._getFilterName(self.pwhl.get_calpol_pos())
-
-    # @event
-    # def filterChange(self, newFilter, oldFilter):
-    #     """
-    #     Fired when the wheel changes the current filter.
-    #
-    #     @param newFilter: The new current filter.
-    #     @type  newFilter: str
-    #
-    #     @param oldFilter: The last filter.
-    #     @type  oldFilter: str
-    #     """
+    def connectTWC(self):
+        self.log.debug('Opening Filter Wheel')
+        self.fwhl = FSUPolDriver(self)
+        return True
 
     def getMetadata(self, request):
         """
@@ -101,3 +85,88 @@ class FsuPolarimeter(FilterWheelBase):
         # return [("FWHEEL", self['filter_wheel_model'], 'Filter Wheel Model'),
         # ("FILTER", self.getFilter(), 'Filter for this observation')]
         pass
+
+class PolarimeterWheelBase(FilterWheelBase):
+    def __init__(self):
+        FilterWheelBase.__init__(self)
+        self.fwhl = None
+        self["id"] = 0
+
+    def setFilter(self, flt):
+
+        fwhl = self.fwhl
+        if fwhl is None:
+            raise FSUInitializationException("Polarimeter wheel not properly initialized.")
+
+        self._abort.clear()
+
+        if self.getFilter() == flt:
+            return
+
+        self.log.debug("Moving to filter %s." % flt)
+
+        fwhl[self['id']](self._getFilterPosition(flt))
+        # This call returns immediately, hence a loop for an abort request.
+        timeout = 0
+        start_time = time.time()
+        while self.getFilter() != flt:
+            if self._abort.isSet():
+                self.stopWheel()
+                break
+            if time.time()-start_time > 25:
+                self.log.warning("Longer than 25s have passed; something is wrong...")
+                # Todo: Check wheel for errors
+                fwhl.check_hw()
+                raise FilterPositionFailure('Positioning filter timed-out! Check Filter Wheel!')
+            time.sleep(0.1)
+
+
+
+class FSUPolarimeterFilterWheel(PolarimeterWheelBase):
+    def __init__(self):
+        PolarimeterWheelBase.__init__(self)
+        self["device"] = None
+        self['filter_wheel_model'] = "Fake Polarimeter Filter Wheel"
+        self["filters"] = "CLEAR B V R I"
+
+    # def getMetadata(self, request):
+    #     return [('FILTER', str(self.getFilter()), 'Filter used for this observation')]
+        # ('FWHEEL', str(self['filter_wheel_model']), 'FilterWheel Model'),
+
+
+class FSUPolarimeterAnalyzerWheel(PolarimeterWheelBase):
+    def __init__(self):
+        PolarimeterWheelBase.__init__(self)
+        self["device"] = None
+        self['filter_wheel_model'] = "Fake Polarimeter Analyzer Wheel"
+        self["filters"] = "CLEAR CALCITE VIS RED"
+
+    # def getMetadata(self, request):
+    #     return [('POLARIZER_TYPE', str(self.getFilter()), 'Polarizer type')]
+        # ('FWHEEL', str(self['filter_wheel_model']), 'FilterWheel Model'),
+
+
+class FSUPolarimeterWavePlate(PolarimeterWheelBase):
+    def __init__(self):
+        PolarimeterWheelBase.__init__(self)
+        self["device"] = None
+        self['filter_wheel_model'] = "Fake Polarimeter Wave Plate Wheel"
+        self["filters"] = "0.0 22.5 45.0 67.5 90.0 112.5 135.0 157.5 180.0 202.5 225.0 247.5 270.0 292.5 315.0 337.5"
+
+    # def getMetadata(self, request):
+    #     return [('HWAVE_PLATE', str(self.getFilter()), 'Wave Plate position')]
+        # ('FWHEEL', str(self['filter_wheel_model']), 'FilterWheel Model'),
+
+
+class FSUPolarimeterAnalyser(PolarimeterWheelBase):
+    # Maybe this one should override the method setFilter to a float number which is the dither position in mm
+
+    def __init__(self):
+        PolarimeterWheelBase.__init__(self)
+        self["device"] = None
+        self['filter_wheel_model'] = "Fake Polarimeter Dithering position"
+        self["filters"] = "0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17"
+
+    # def getMetadata(self, request):
+    #     return [('POL_DITHER', str(self.getFilter()), 'Polarimeter Dither position')]
+        # ('FWHEEL', str(self['filter_wheel_model']), 'FilterWheel Model'),

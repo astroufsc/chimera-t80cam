@@ -3,12 +3,9 @@ import time
 
 from chimera_t80cam.instruments.ebox.fsuconn import FSUConn
 from chimera_t80cam.instruments.ebox.fsufwheels import FSUFWheels
-
+from chimera_t80cam.instruments.ebox.fsuexceptions import FilterPositionFailure
 
 log = logging.getLogger(name=__name__.replace('chimera_t80cam','chimera'))
-
-class FilterPositionFailure(Exception):
-    pass
 
 class FSUFilterWheel(FSUConn, FSUFWheels):
     """

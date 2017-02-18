@@ -4,8 +4,8 @@ import logging
 
 from chimera.core.event import event
 from chimera.core.lock import lock
-# from chimera.core.exceptions import ChimeraException, InstrumentBusyException, ChimeraObjectException
 
+from chimera_t80cam.instruments.ebox.fsuexceptions import FilterPositionFailure
 from chimera.instruments.filterwheel import FilterWheelBase
 
 from chimera_t80cam.instruments.ebox.fsufilters.filterwheelsdrv import FSUFilterWheel
@@ -74,30 +74,6 @@ class FsuFilters(FilterWheelBase):
         if self.getFilter() == flt:
             return
 
-        # print(self._getFilterPosition(flt))
-        # Set wheels in motion.
-        # self.log.debug("QUICK AND DIRTY: Moving to position zero.")
-        # fwhl.move_pos(0)
-
-        # This call returns immediately, hence loop for an abort request.
-        # time.sleep(self["waitMoveStart"])
-        # timeout = 0
-        # start_time = time.time()
-        # while not (fwhl.fwheel_is_moving() and
-        #                fwhl.awheel_is_moving()):
-        #     time.sleep(0.1)
-        #     if self._abort.isSet():
-        #         self.stopWheel()
-        #         break
-        #     if time.time()-start_time > 25:
-        #         self.log.warning("Longer than 25s have passed; something is wrong...")
-        #         # Longer than 25s have passed; something is wrong...
-        #         fwhl.check_hw()
-
-        # print(self._getFilterPosition(flt))
-        # Set wheels in motion.
-        # self.log.debug("QUICK AND DIRTY: Moving to %s." % flt)
-
         self.log.debug("Moving to filter %s." % flt)
 
         fwhl.move_pos(self._getFilterPosition(flt))
@@ -113,8 +89,9 @@ class FsuFilters(FilterWheelBase):
                 break
             if time.time()-start_time > 25:
                 self.log.warning("Longer than 25s have passed; something is wrong...")
-                # Longer than 25s have passed; something is wrong...
+                # Todo: Check wheel for errors
                 fwhl.check_hw()
+                raise FilterPositionFailure('Positioning filter timed-out! Check Filter Wheel!')
 
     def getFilter(self):
         """
