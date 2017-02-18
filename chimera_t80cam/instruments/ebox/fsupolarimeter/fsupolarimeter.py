@@ -54,8 +54,31 @@ class FsuPolarimeter(FilterWheelBase):
 
     def setFilter(self, filters):
         f = filters.split(',')
+        current_filter = self.getFilter().split(',')
+
         for wheel_num, wheel in enumerate(self._wheels):
-            self.fwhl[int(self._wheels[wheel_num]['id'])](f[wheel_num])
+            self._abort.clear()
+
+            if f[wheel_num] == current_filter[wheel_num]:
+                self.log.debug('Already in filter %s' % f[wheel_num])
+                continue
+
+            self.log.debug("Moving to filter %s." % f[wheel_num])
+
+            filter_pos = self._wheels[wheel_num]['id'].getFilterPosition(f[wheel_num])
+            self.fwhl[int(self._wheels[wheel_num]['id'])](filter_pos)
+            # This call returns immediately, hence a loop for an abort request.
+            timeout = 0
+            start_time = time.time()
+            while self.getFilter() != f[wheel_num]:
+                if self._abort.isSet():
+                    break
+                if time.time()-start_time > 25:
+                    self.log.warning("Longer than 25s have passed; something is wrong...")
+                    # Todo: Check wheel for errors
+                    # fwhl.check_hw()
+                    raise FilterPositionFailure('Positioning filter %i timed-out! Check Filter Wheel!' % wheel_num)
+                time.sleep(0.1)
 
         return True
 
@@ -124,6 +147,9 @@ class PolarimeterWheelBase(FilterWheelBase):
                 fwhl.check_hw()
                 raise FilterPositionFailure('Positioning filter timed-out! Check Filter Wheel!')
             time.sleep(0.1)
+
+    def getFilterPosition(self, name):
+        return self.getFilters().index(name)
 
 class FSUPolarimeterFilterWheel(PolarimeterWheelBase):
     def __init__(self):
