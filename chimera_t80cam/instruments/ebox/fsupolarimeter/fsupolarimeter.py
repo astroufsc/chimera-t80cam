@@ -66,8 +66,8 @@ class FsuPolarimeter(FilterWheelBase):
             self.log.debug("Moving to filter %s." % f[wheel_num])
 
             filter_pos = self._wheels[wheel_num].getFilterPosition(f[wheel_num])
-            continue
             self.fwhl[int(self._wheels[wheel_num]['id'])](filter_pos)
+            continue
             # This call returns immediately, hence a loop for an abort request.
             timeout = 0
             start_time = time.time()

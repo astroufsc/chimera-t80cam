@@ -22,7 +22,7 @@ class FSUFWheels():
             self.conn, '.wPOSITIONING_REQUESTED_T80_POL_BOX_FILTER_WHEEL1', 'i')
 
         self._wPOS_REQU_T80_POL_BOX_FILTER_WHEEL2 = ads_var_single(
-            self.conn, '.wPOSITIONING_REQUESTED_T80_POL_BOX_FILTER_WHEEL1', 'i')
+            self.conn, '.wPOSITIONING_REQUESTED_T80_POL_BOX_FILTER_WHEEL2', 'i')
 
         self._wPOS_REQU_T80_POL_BOX_WHEEL = ads_var_single(
             self.conn, '.wPOSITIONING_REQUESTED_T80_POL_BOX_WHEEL', 'i')
