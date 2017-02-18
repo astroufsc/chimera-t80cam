@@ -88,11 +88,16 @@ class FsuPolarimeter(FilterWheelBase):
 
 class PolarimeterWheelBase(FilterWheelBase):
 
-    __config__ = dict(id = 0)
+    __config__ = dict(id = 0,
+                      fwhl = None)
 
     def __init__(self):
         FilterWheelBase.__init__(self)
         self.fwhl = None
+
+    def __start__(self):
+
+        self.fwhl = self.getManager().getProxy(self['fwhl'], lazy=True)
 
     def setFilter(self, flt):
 

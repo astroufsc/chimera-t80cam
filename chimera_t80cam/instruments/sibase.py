@@ -194,7 +194,7 @@ class SIBase(CameraBase):
         self.get_status()
         self.get_config()
         self.get_camera_settings()
-        self.setHz(1.0 / 30.0)
+        #self.setHz(1.0 / 30.0)
 
     def __stop__(self):
         try:

@@ -14,6 +14,10 @@ class T80Pol(SIBase, FsuPolarimeter):
         SIBase.__init__(self)
         FsuPolarimeter.__init__(self)
 
+    def __start__(self):
+        super(SIBase, self).__start__()
+        super(FsuPolarimeter, self).__start__()
+
     @lock
     def open(self):
         self.connectSIClient()
