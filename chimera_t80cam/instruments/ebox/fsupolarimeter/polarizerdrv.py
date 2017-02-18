@@ -120,8 +120,8 @@ class FSUPolDriver(FSUConn, FSUFWheels):
         self.log.debug('Filter position: %s/%s' % (get_required_pos.read(), filterpos))
 
         # Move it
-        #vread1.write(self._vread1.read() ^ start_movement_bit)
-        #self.log.debug('VREAD1 {0}'.format(vread1.read()))
+        vread1.write(self._vread1.read() ^ start_movement_bit)
+        self.log.debug('VREAD1 {0}'.format(vread1.read()))
 
         # End of function. Will not wait for movement to complete! This just starts the movement!
 
