@@ -212,11 +212,11 @@ class SIBase(CameraBase):
             if not self._threadList[i].isAlive():
                 self._threadList.pop(i)
 
-        self.log.debug("[control] Updating camera status.")
+        # self.log.debug("[control] Updating camera status.")
         self.get_status()
 
-        self.log.debug("[control] Proxy queue sizes: %i %i" % (self._tmpFilesProxyQueue.qsize(),
-                                                               self._finalFilesProxyQueue.qsize()))
+        # self.log.debug("[control] Proxy queue sizes: %i %i" % (self._tmpFilesProxyQueue.qsize(),
+        #                                                        self._finalFilesProxyQueue.qsize()))
 
 
         if self._tmpFilesProxyQueue.qsize() > self["max_files"]:
