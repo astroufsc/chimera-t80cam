@@ -34,7 +34,7 @@ class FSUPolDriver(FSUConn, FSUFWheels):
         """
 
         if wheel == 0:
-            self.log.debug('Moving Filter wheel')
+            self.log.debug('Selecting Filter wheel')
             vread1 = self._vread1
             vread2 = self._vread2
             #get_required_pos = self.get_required_pos_fw
@@ -43,7 +43,7 @@ class FSUPolDriver(FSUConn, FSUFWheels):
             enable_bit = None
             req_pos = self._wPOS_REQU_T80_POL_BOX_FILTER_WHEEL1
         elif wheel == 1:
-            self.log.debug('Moving Analyser wheel')
+            self.log.debug('Selecting Analyser wheel')
             vread1 = self._vread1
             vread2 = self._vread3
             #get_required_pos = self.get_required_pos_aw
@@ -52,7 +52,7 @@ class FSUPolDriver(FSUConn, FSUFWheels):
             enable_bit = None
             req_pos = self._wPOS_REQU_T80_POL_BOX_FILTER_WHEEL2
         elif wheel == 2:
-            self.log.debug('Moving Wave plate')
+            self.log.debug('Selecting Wave plate')
             vread1 = self._vread10
             vread2 = self._vread12
             #get_required_pos = self.get_required_pos_wp
@@ -61,7 +61,7 @@ class FSUPolDriver(FSUConn, FSUFWheels):
             enable_bit = 1
             req_pos = self._wPOS_REQU_T80_POL_BOX_FILTER
         elif wheel == 3:
-            self.log.debug('Moving Polarimeter analyser')
+            self.log.debug('Selecting Polarimeter analyser')
             vread1 = self._vread20
             vread2 = self._vread22
             #get_required_pos = self.get_required_pos_pa
