@@ -53,7 +53,7 @@ class FSUPolDriver(FSUConn, FSUFWheels):
             vread1 = self._vread10
             vread2 = self._vread12
             #get_required_pos = self.get_required_pos_wp
-            start_movement_bit = 1
+            start_movement_bit = (1 << 4)
             stop_movement_bit = (1 << 5)
             enable_bit = 1
             req_pos = self._wPOS_REQU_T80_POL_BOX_FILTER
@@ -61,7 +61,7 @@ class FSUPolDriver(FSUConn, FSUFWheels):
             vread1 = self._vread20
             vread2 = self._vread22
             #get_required_pos = self.get_required_pos_pa
-            start_movement_bit = 1
+            start_movement_bit = (1 << 4)
             stop_movement_bit = (1 << 5)
             enable_bit = 1
             req_pos = self._wPOS_REQU_T80_POL_BOX_WHEEL
