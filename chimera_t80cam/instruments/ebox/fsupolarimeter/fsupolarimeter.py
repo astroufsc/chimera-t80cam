@@ -95,10 +95,6 @@ class PolarimeterWheelBase(FilterWheelBase):
         FilterWheelBase.__init__(self)
         self.fwhl = None
 
-    def __start__(self):
-
-        self.fwhl = self.getManager().getProxy(self['fwhl'], lazy=True)
-
     def setFilter(self, flt):
 
         fwhl = self.fwhl
