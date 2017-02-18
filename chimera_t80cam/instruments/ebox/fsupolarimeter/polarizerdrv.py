@@ -37,7 +37,7 @@ class FSUPolDriver(FSUConn, FSUFWheels):
             self.log.debug('Moving Filter wheel')
             vread1 = self._vread1
             vread2 = self._vread2
-            get_required_pos = self.get_required_pos_fw
+            #get_required_pos = self.get_required_pos_fw
             start_movement_bit = 1
             stop_movement_bit = (1 << 5)
             enable_bit = None
@@ -46,25 +46,25 @@ class FSUPolDriver(FSUConn, FSUFWheels):
             self.log.debug('Moving Analyser wheel')
             vread1 = self._vread1
             vread2 = self._vread3
-            get_required_pos = self.get_required_pos_aw
+            #get_required_pos = self.get_required_pos_aw
             start_movement_bit = 1
             stop_movement_bit = (1 << 5)
             enable_bit = None
             req_pos = self._wPOS_REQU_T80_POL_BOX_FILTER_WHEEL2
-        elif wheel == 1:
+        elif wheel == 2:
             self.log.debug('Moving Wave plate')
             vread1 = self._vread10
             vread2 = self._vread12
-            get_required_pos = self.get_required_pos_wp
+            #get_required_pos = self.get_required_pos_wp
             start_movement_bit = 1
             stop_movement_bit = (1 << 5)
             enable_bit = 1
             req_pos = self._wPOS_REQU_T80_POL_BOX_FILTER
-        elif wheel == 1:
+        elif wheel == 3:
             self.log.debug('Moving Polarimeter analyser')
             vread1 = self._vread20
             vread2 = self._vread22
-            get_required_pos = self.get_required_pos_pa
+            #get_required_pos = self.get_required_pos_pa
             start_movement_bit = 1
             stop_movement_bit = (1 << 5)
             enable_bit = 1
@@ -72,7 +72,7 @@ class FSUPolDriver(FSUConn, FSUFWheels):
         else:
             return None
 
-        return vread1, vread2, get_required_pos, start_movement_bit, stop_movement_bit, enable_bit, req_pos
+        return vread1, vread2, start_movement_bit, stop_movement_bit, enable_bit, req_pos
 
     def move_element(self, filterpos, wheel=0):
         """
@@ -84,7 +84,7 @@ class FSUPolDriver(FSUConn, FSUFWheels):
         :param wheel:
         :return:
         """
-        vread1, vread2, get_required_pos, start_movement_bit, \
+        vread1, vread2, start_movement_bit, \
         stop_movement_bit, enable_bit, get_required_pos = self.setup_wheel(wheel)
 
         self.log.debug('Requested filter position {0} on {1} wheel'.format(filterpos, wheel))
@@ -136,9 +136,9 @@ class FSUPolDriver(FSUConn, FSUFWheels):
         :param wheel:
         :return:
         """
-        vread1, vread2, get_required_pos, start_movement_bit, stop_movement_bit = self.setup_wheel(wheel)
+        vread1 = self.setup_wheel(wheel)
 
-        return vread1.read()
+        return vread1[0].read()
 
     def __getitem__(self, item):
         """

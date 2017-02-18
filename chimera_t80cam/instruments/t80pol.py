@@ -15,8 +15,9 @@ class T80Pol(SIBase, FsuPolarimeter):
         FsuPolarimeter.__init__(self)
 
     def __start__(self):
-        super(SIBase, self).__start__()
         super(FsuPolarimeter, self).__start__()
+        super(SIBase, self).__start__()
+        super(SIBase, self).setHz(0.1)
 
     @lock
     def open(self):

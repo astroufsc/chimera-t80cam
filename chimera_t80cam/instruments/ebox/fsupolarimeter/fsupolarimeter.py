@@ -61,8 +61,11 @@ class FsuPolarimeter(FilterWheelBase):
 
     def getFilter(self):
         filters = ""
+
         for wheel_num, wheel in enumerate(self._wheels):
-            filters += "," + self._wheels[wheel_num].getFilter()
+            print self._wheels[wheel_num]['id']
+            filters += "," + self._wheels[wheel_num].getFilters()[self.fwhl.get_pos(int(self._wheels[wheel_num]['id']))]
+
         return filters[1:]
 
     def connectTWC(self):
@@ -122,8 +125,6 @@ class PolarimeterWheelBase(FilterWheelBase):
                 fwhl.check_hw()
                 raise FilterPositionFailure('Positioning filter timed-out! Check Filter Wheel!')
             time.sleep(0.1)
-
-
 
 class FSUPolarimeterFilterWheel(PolarimeterWheelBase):
     def __init__(self):
