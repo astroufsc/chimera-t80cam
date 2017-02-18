@@ -1,8 +1,8 @@
 import logging
 import time
 
-from chimera.instruments.ebox.fsuconn import FSUConn
-from chimera.instruments.ebox.fsufwheels import FSUFWheels
+from chimera_t80cam.instruments.ebox.fsuconn import FSUConn
+from chimera_t80cam.instruments.ebox.fsufwheels import FSUFWheels
 from chimera_t80cam.instruments.ebox.fsuexceptions import FilterPositionFailure
 
 class FSUPolDriver(FSUConn, FSUFWheels):
