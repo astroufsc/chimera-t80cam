@@ -112,7 +112,7 @@ class FSUPolDriver(FSUConn, FSUFWheels):
         start_time = time.time()
         # Waiting for position to be set at the wheel controller
         while get_required_pos.read() != filterpos:
-            self.log.debug('Filter position: %s/%s' % (get_required_pos.read(), filterpos))
+            self.log.debug('Filter position on wheel %i: %s/%s' % (wheel, get_required_pos.read(), filterpos))
             if time.time()-start_time > self.timeout:
                 raise FilterPositionFailure("Could not set filter position.")
             # Todo: Check for errors
