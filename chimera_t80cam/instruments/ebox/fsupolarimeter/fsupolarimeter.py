@@ -2,6 +2,7 @@ import threading
 import time
 import logging
 import itertools
+import numpy as np
 # from chimera.core.event import event
 from chimera.core.lock import lock
 
@@ -66,21 +67,31 @@ class FsuPolarimeter(FilterWheelBase):
             self.log.debug("Moving to filter %s." % f[wheel_num])
 
             filter_pos = self._wheels[wheel_num].getFilterPosition(f[wheel_num])
+
+            # This call returns immediately. The wait/abort sequence is after setting it all up
             self.fwhl[int(self._wheels[wheel_num]['id'])](filter_pos)
 
-            # This call returns immediately, hence a loop for an abort request.
-            timeout = 0
-            start_time = time.time()
-            while self.fwhl.get_pos(int(self._wheels[wheel_num]['id'])) != filter_pos:
-                self.log.debug('Wheel %i moving...' % wheel_num)
-                if self._abort.isSet():
-                    break
-                if time.time()-start_time > 25:
-                    self.log.warning("Longer than 25s have passed; something is wrong...")
-                    # Todo: Check wheel for errors
-                    # fwhl.check_hw()
-                    raise FilterPositionFailure('Positioning filter %i timed-out! Check Filter Wheel!' % wheel_num)
-                time.sleep(0.1)
+        timeout = self['plc_timeout']
+        start_time = time.time()
+        complete_mask = np.zeros_like(self._wheels) == 1
+
+        while not np.any(complete_mask):
+            for wheel_num, wheel in enumerate(self._wheels):
+                if complete_mask[wheel_num]:
+                    self.log.debug('Wheel %i in position' % wheel_num)
+                    continue
+                self.log.debug('Checking wheel %i' % wheel_num)
+                complete_mask[wheel_num] = self.fwhl.position_reached([int(self._wheels[wheel_num]['id'])])
+
+            if self._abort.isSet():
+                self.log.warning('Aborting!')
+                break
+            if time.time()-start_time > timeout:
+                self.log.error("Longer than %f s have passed; something is wrong..." % timeout)
+                # Todo: Check wheel for errors
+                # fwhl.check_hw()
+                raise FilterPositionFailure('Positioning filter timed-out (%s)! Check Filter Wheel!' % complete_mask)
+            time.sleep(0.1)
 
         return True
 

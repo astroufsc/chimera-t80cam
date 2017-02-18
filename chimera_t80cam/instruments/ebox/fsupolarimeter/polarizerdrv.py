@@ -186,6 +186,18 @@ class FSUPolDriver(FSUConn, FSUFWheels):
         return self.move_element(filterpos=filterpos,
                                  wheel=3)
 
+    def position_reached(self, wheel):
+        if wheel == 0:
+            return (self._vwrite1.read() & (1 << 2)) == 0
+        elif wheel == 1:
+            return (self._vwrite1.read() & (1 << 3)) == 0
+        elif wheel == 2:
+            return (self._vwrite10.read() & (1 << 2)) == 0
+        elif wheel == 3:
+            return (self._vwrite20.read() & (1 << 2)) == 0
+
+
+
     def wp_position_reached(self):
         return (self._vwrite10.read() & (1 << 2)) == 0
 
