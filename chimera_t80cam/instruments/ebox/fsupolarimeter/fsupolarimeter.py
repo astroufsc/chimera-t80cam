@@ -87,6 +87,9 @@ class FsuPolarimeter(FilterWheelBase):
         pass
 
 class PolarimeterWheelBase(FilterWheelBase):
+
+    __config__ = dict(id = 0)
+
     def __init__(self):
         FilterWheelBase.__init__(self)
         self.fwhl = None
