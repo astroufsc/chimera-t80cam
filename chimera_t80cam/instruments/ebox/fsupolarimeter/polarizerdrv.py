@@ -56,7 +56,7 @@ class FSUPolDriver(FSUConn, FSUFWheels):
             start_movement_bit = (1 << 4)
             stop_movement_bit = (1 << 5)
             enable_bit = 1
-            req_pos = self._wPOS_REQU_T80_POL_BOX_FILTER
+            req_pos = self._wPOS_REQU_T80_POL_BOX_WHEEL
         elif wheel == 3:
             vread1 = self._vread20
             vread2 = self._vread22
@@ -64,7 +64,7 @@ class FSUPolDriver(FSUConn, FSUFWheels):
             start_movement_bit = (1 << 4)
             stop_movement_bit = (1 << 5)
             enable_bit = 1
-            req_pos = self._wPOS_REQU_T80_POL_BOX_WHEEL
+            req_pos = self._wPOS_REQU_T80_POL_BOX_FILTER
         else:
             return None
 
