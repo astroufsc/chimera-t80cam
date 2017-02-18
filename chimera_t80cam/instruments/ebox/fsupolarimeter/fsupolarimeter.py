@@ -90,7 +90,6 @@ class PolarimeterWheelBase(FilterWheelBase):
     def __init__(self):
         FilterWheelBase.__init__(self)
         self.fwhl = None
-        self["id"] = 0
 
     def setFilter(self, flt):
 
