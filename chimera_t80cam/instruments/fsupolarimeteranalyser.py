@@ -11,6 +11,7 @@ class FSUPolarimeterAnalyser(PolarimeterWheelBase):
         self["device"] = None
         self['filter_wheel_model'] = "Fake Polarimeter Dithering position"
         self["filters"] = "0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17"
+        self["id"] = 3
 
     # def getMetadata(self, request):
     #     return [('POL_DITHER', str(self.getFilter()), 'Polarimeter Dither position')]

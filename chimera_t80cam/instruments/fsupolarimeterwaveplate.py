@@ -10,6 +10,7 @@ class FSUPolarimeterFilterWheel(PolarimeterWheelBase):
         self["device"] = None
         self['filter_wheel_model'] = "Fake Polarimeter Filter Wheel"
         self["filters"] = "CLEAR B V R I"
+        self["id"] = 2
 
     # def getMetadata(self, request):
     #     return [('FILTER', str(self.getFilter()), 'Filter used for this observation')]
