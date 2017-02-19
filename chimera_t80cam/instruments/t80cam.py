@@ -24,6 +24,13 @@ class T80Cam(SIBase,FsuFilters):
         self.get_camera_settings()
         self.connectTWC()
         self.set_home_position()
+        self.setHz(0.1)
+
+    def control(self):
+        super(FsuFilters, self).control()
+        super(SIBase, self).control()
+
+        return True
 
     @lock
     def open(self):
