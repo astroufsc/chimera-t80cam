@@ -777,6 +777,22 @@ class SIBase(CameraBase):
                     self.log.debug('Removing card "%s" from header' % card)
                     hdu[0].header.remove(card)
 
+                chimeraCards = [('DATE-OBS', ImageUtil.formatDate(self.__lastFrameStart), 'Date exposure started'),
+
+                                ('CCD-TEMP', extraHeaders["ccdtemp"], 'CCD Temperature at Exposure Start [deg. C]'),
+                                ("EXPTIME", float(imageRequest['exptime']) or 0., "exposure time in seconds"),
+                                ('IMAGETYP', imageRequest['type'].strip(), 'Image type'),
+                                ('SHUTTER', str(imageRequest['shutter']), 'Requested shutter state'),
+                                ('INSTRUME', str(self['camera_model']), 'Name of instrument'),
+                                ('CCD', str(self['ccd_model']), 'CCD Model'),
+                                ('CCD_DIMX', self.getPhysicalSize()[0], 'CCD X Dimension Size'),
+                                ('CCD_DIMY', self.getPhysicalSize()[1], 'CCD Y Dimension Size'),
+                                ('CCDPXSZX', self.getPixelSize()[0], 'CCD X Pixel Size [micrometer]'),
+                                ('CCDPXSZY', self.getPixelSize()[1], 'CCD Y Pixel Size [micrometer]')]
+
+                for card in chimeraCards:
+                    hdu[0].header.set(*card)
+
                 # Save temporary image to local_path/night
                 # Create dir if necessary
                 # tmpdir = os.path.join(self['local_path'], os.path.split(path)[-1])
@@ -968,18 +984,18 @@ class SIBase(CameraBase):
             # for card in wcs:
             #     hdu[0].header.set(*card)
 
-        chimeraCards = [('DATE-OBS', ImageUtil.formatDate(frameStart), 'Date exposure started'),
-
-                        ('CCD-TEMP', ccdtemp, 'CCD Temperature at Exposure Start [deg. C]'),
-                        ("EXPTIME", float(imageRequest['exptime']) or 0., "exposure time in seconds"),
-                        ('IMAGETYP', imageRequest['type'].strip(), 'Image type'),
-                        ('SHUTTER', str(imageRequest['shutter']), 'Requested shutter state'),
-                        ('INSTRUME', str(self['camera_model']), 'Name of instrument'),
-                        ('CCD', str(self['ccd_model']), 'CCD Model'),
-                        ('CCD_DIMX', self.getPhysicalSize()[0], 'CCD X Dimension Size'),
-                        ('CCD_DIMY', self.getPhysicalSize()[1], 'CCD Y Dimension Size'),
-                        ('CCDPXSZX', self.getPixelSize()[0], 'CCD X Pixel Size [micrometer]'),
-                        ('CCDPXSZY', self.getPixelSize()[1], 'CCD Y Pixel Size [micrometer]')]
+        # chimeraCards = [('DATE-OBS', ImageUtil.formatDate(frameStart), 'Date exposure started'),
+        #
+        #                 ('CCD-TEMP', ccdtemp, 'CCD Temperature at Exposure Start [deg. C]'),
+        #                 ("EXPTIME", float(imageRequest['exptime']) or 0., "exposure time in seconds"),
+        #                 ('IMAGETYP', imageRequest['type'].strip(), 'Image type'),
+        #                 ('SHUTTER', str(imageRequest['shutter']), 'Requested shutter state'),
+        #                 ('INSTRUME', str(self['camera_model']), 'Name of instrument'),
+        #                 ('CCD', str(self['ccd_model']), 'CCD Model'),
+        #                 ('CCD_DIMX', self.getPhysicalSize()[0], 'CCD X Dimension Size'),
+        #                 ('CCD_DIMY', self.getPhysicalSize()[1], 'CCD Y Dimension Size'),
+        #                 ('CCDPXSZX', self.getPixelSize()[0], 'CCD X Pixel Size [micrometer]'),
+        #                 ('CCDPXSZY', self.getPixelSize()[1], 'CCD Y Pixel Size [micrometer]')]
 
         # telescope = self.getManager().getProxy(self['telescope'])
         #
@@ -989,8 +1005,8 @@ class SIBase(CameraBase):
         #         ('HIERARCH T80S TEL AIRM END',  1 / N.cos(N.pi / 2 - self.instrument.getAlt().R), ' Airmass at end of exposure'),
         #         ]
 
-        for card in chimeraCards:
-            hdu[0].header.set(*card)
+        # for card in chimeraCards:
+        #     hdu[0].header.set(*card)
 
         for card in md:
             hdu[0].header.set(*card)
