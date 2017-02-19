@@ -15,9 +15,15 @@ class T80Cam(SIBase,FsuFilters):
 
     def __start__(self):
         super(FsuFilters, self).__start__()
-        super(SIBase, self).__start__()
-        super(SIBase, self).setHz(0.1)
-
+        #super(SIBase, self).__start__()
+        #super(SIBase, self).setHz(0.1)
+        self.connectSIClient()
+        self.log.info("retrieving information from camera...")
+        self.get_status()
+        self.get_config()
+        self.get_camera_settings()
+        self.connectTWC()
+        
     @lock
     def open(self):
         # super(SIBase,self).open()
