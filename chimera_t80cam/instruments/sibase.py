@@ -793,6 +793,13 @@ class SIBase(CameraBase):
                 for card in chimeraCards:
                     hdu[0].header.set(*card)
 
+                if imageRequest:
+                    for header in imageRequest.headers:
+                        try:
+                            hdu[0].header.set(*header)
+                        except Exception, e:
+                            log.warning("Couldn't add %s: %s" % (str(header), str(e)))
+
                 # Save temporary image to local_path/night
                 # Create dir if necessary
                 # tmpdir = os.path.join(self['local_path'], os.path.split(path)[-1])
