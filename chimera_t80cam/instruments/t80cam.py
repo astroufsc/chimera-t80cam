@@ -13,6 +13,11 @@ class T80Cam(SIBase,FsuFilters):
         SIBase.__init__(self)
         FsuFilters.__init__(self)
 
+    def __start__(self):
+        super(FsuFilters, self).__start__()
+        super(SIBase, self).__start__()
+        super(SIBase, self).setHz(0.1)
+
     @lock
     def open(self):
         # super(SIBase,self).open()
