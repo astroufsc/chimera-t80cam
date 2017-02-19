@@ -1,6 +1,7 @@
 import threading
 import time
 import logging
+import socket
 
 from chimera.core.event import event
 from chimera.core.lock import lock
@@ -47,13 +48,20 @@ class FsuFilters(FilterWheelBase):
         self.stopWheel()
 
     def control(self):
+        self.log.debug("[control] Checking filter wheel.")
         try:
             msg = ""
             check = self.fwhl.check_hw()
             for item in check:
                 self.log.error('%s error flag is set' % item['flag'])
-        except:
-            pass
+        except socket.timeout:
+            self.log.warning('Communication timed-out. Trying to reconnect...')
+            self.connectTWC()
+            self.set_home_position()
+        except Exception, e:
+            self.log.exception(e)
+
+        return True
 
     @lock
     def open(self):
