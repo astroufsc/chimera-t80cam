@@ -51,3 +51,20 @@ class FSUFWheels():
         self._vwrite3 = ads_var_single(self.conn, '.wDWORD_WRITE[3]', 'i')
         self._vwrite10 = ads_var_single(self.conn, '.wDWORD_WRITE[10]', 'i')
         self._vwrite20 = ads_var_single(self.conn, '.wDWORD_WRITE[20]', 'i')
+
+        self._rlREAL_READ0 = ads_var_single(self.conn, '.rlREAL_READ[0]', 'd')  # FILTER WHEEL COORDINATE
+        self._rlREAL_READ1 = ads_var_single(self.conn, '.rlREAL_READ[1]', 'd')  # ANALYSER WHEEL COORDINATE
+        self._rlREAL_READ2 = ads_var_single(self.conn, '.rlREAL_READ[2]', 'd')  # FILTER WHEEL HOME COORDINATE
+        self._rlREAL_READ3 = ads_var_single(self.conn, '.rlREAL_READ[3]', 'd')  # ANALYSER WHEEL FILTER COORDINATE
+        self._rlREAL_READ4 = ads_var_single(self.conn, '.rlREAL_READ[4]', 'd')  # FILTER WHEEL VELOCITY PERCENTAGE
+        self._rlREAL_READ5 = ads_var_single(self.conn, '.rlREAL_READ[5]', 'd')  # ANALYSER WHEEL VELOCITY PERCENTAGE
+
+        # Operation mode position or angle/home
+        self._bFILTER_1_AND_2_HOME_MODE = ads_var_single(self.conn, '.bFILTER_1_AND_2_HOME_MODE', '?')
+
+        # HOME position stored at the PLC server
+        ## Wheel 1
+        self._lrINITIAL_ANGLE_POS_M1 = self._rlREAL_READ0 = ads_var_single(self.conn,'.lrINITIAL_ANGLE_POS_M1','d')
+        ## Wheel 2
+        self._lrINITIAL_ANGLE_POS_M2 = self._rlREAL_READ0 = ads_var_single(self.conn,'.lrINITIAL_ANGLE_POS_M2','d')
+

@@ -102,6 +102,48 @@ class FSUFilterWheel(FSUConn, FSUFWheels):
         """
         return self._wPOS_REQ.read()
 
+    def set_home_position_wheel(self, wheel1, wheel2):
+
+        # Check if wheel is on position or homing mode
+        if not self._bFILTER_1_AND_2_HOME_MODE.read():
+            # If bit is set, unset it
+            if (self._vread1.read() & (1<<2)) != 0:
+                self._vread1.write(self._vread1.read() ^ (1 << 2))
+
+            # Request to switch to homing mode
+            self._vread1.write(self._vread1.read() ^ (1 << 2))
+
+            start_time = time.time()
+            while not self._bFILTER_1_AND_2_HOME_MODE.read():
+                if time.time()-start_time > self.timeout:
+                    raise FilterPositionFailure("Could not switch to homing mode!")
+                time.sleep(0.1)
+                # wait for mode switch
+        # Set home positions
+        self._rlREAL_READ2.write(float(wheel1))  # make sure wheel1 is a float!
+        self._rlREAL_READ3.write(float(wheel2))  # make sure wheel2 is a float!
+        # If bit is set, unset it
+        if (self._vread1.read() & (1 << 3)) != 0:
+            self._vread1.write(self._vread1.read() ^ (1 << 3))
+        self._vread1.write(self._vread1.read() ^ (1 << 3))  # Send command to set position
+
+        # wait for PLC to acquire values
+        start_time = time.time()
+        while self._lrINITIAL_ANGLE_POS_M1.read() != float(wheel1) and \
+                        self._lrINITIAL_ANGLE_POS_M2.read() != float(wheel2):
+            if time.time()-start_time > self.timeout:
+                raise FilterPositionFailure("Could not set homing positions! Tried to set "
+                                            "%f/%f PLC values are %f/%f" % (float(wheel1),
+                                                                            float(wheel2),
+                                                                            self._lrINITIAL_ANGLE_POS_M1.read(),
+                                                                            self._lrINITIAL_ANGLE_POS_M2.read()))
+            time.sleep(0.1)
+
+        self._vread1.write(self._vread1.read() ^ (1 << 3))  # Unset command to set position
+        self._vread1.write(self._vread1.read() ^ (1 << 2))  # Go back to position mode
+
+
+
     def check_hw(self):
         vec_msgs0 = ('Filter wheel: position timeout',
                      'Analyser wheel: position timeout',

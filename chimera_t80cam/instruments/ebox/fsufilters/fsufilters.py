@@ -27,7 +27,9 @@ class FsuFilters(FilterWheelBase):
         plc_ip_port=48898,
         pc_ams_id="5.18.26.31.1.1",
         pc_ams_port=32788,
-        plc_timeout=5)
+        plc_timeout=5,
+        wheel1_home = 0.,
+        wheel2_home = 0.)
 
     def __init__(self):
         """Constructor."""
@@ -38,6 +40,7 @@ class FsuFilters(FilterWheelBase):
 
     def __start__(self):
         self.open()
+        self.set_home_position()
 
     def __stop__(self):
         self.stopWheel()
@@ -71,7 +74,8 @@ class FsuFilters(FilterWheelBase):
 
         self._abort.clear()
 
-        if self.getFilter() == flt:
+        current_filter = self.getFilter()
+        if current_filter == flt:
             return
 
         self.log.debug("Moving to filter %s." % flt)
@@ -93,6 +97,8 @@ class FsuFilters(FilterWheelBase):
                 fwhl.check_hw()
                 raise FilterPositionFailure('Positioning filter timed-out! Check Filter Wheel!')
 
+        self.filterChange(flt, current_filter)
+
     def getFilter(self):
         """
         Return the current filter.
@@ -104,3 +110,15 @@ class FsuFilters(FilterWheelBase):
         """
         fwhl = self.fwhl
         return self._getFilterName(fwhl.get_pos())
+
+    def set_home_position(self):
+        '''
+        Set home position.
+        :return:
+        '''
+
+        self.log.debug('Set home position: %f/%f' % (self["wheel1_home"],
+                                                     self["wheel2_home"]))
+
+        self.fwhl.set_home_position_wheel(self["wheel1_home"],
+                                          self["wheel2_home"])
