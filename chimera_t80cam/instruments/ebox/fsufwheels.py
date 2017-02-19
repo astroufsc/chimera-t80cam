@@ -44,13 +44,57 @@ class FSUFWheels():
         self._vread20 = ads_var_single(self.conn, '.wDWORD_READ[20]', 'i')
         self._vread21 = ads_var_single(self.conn, '.wDWORD_READ[21]', 'i')
         self._vread22 = ads_var_single(self.conn, '.wDWORD_READ[22]', 'i')
+
         # CAM filter wheels status vectors
+        #####################################################################
         self._vwrite0 = ads_var_single(self.conn, '.wDWORD_WRITE[0]', 'i')
+        self._vwrite0_keys = {"TIME OUT POS. FILTER WHEEL": 1,
+                              "TIME OUT POS. ANALYSER WHEEL": (1 << 1),
+                              "SHUTTER ERROR FLAG": (1 << 2),
+                              "SHUTTER OPENED FLAG": (1 << 3),
+                              "FILTER WHEEL ENCODER DISCONECTED OR INVERTED": (1 << 4),
+                              "ANALYSER WHEEL ENCODER DISCONECTED OR INVERTED": (1 << 5),
+                              "FILTER WHEEL MOTOR DISCONECTED": (1 << 6),
+                              "ANALYSER WHEEL MOTOR DISCONECTED" : (1 << 7)
+                              }
+        #####################################################################
         self._vwrite1 = ads_var_single(self.conn, '.wDWORD_WRITE[1]', 'i')
-        self._vwrite2 = ads_var_single(self.conn, '.wDWORD_WRITE[2]', 'i')
-        self._vwrite3 = ads_var_single(self.conn, '.wDWORD_WRITE[3]', 'i')
+        self._vwrite1_keys = {"FILTER WHEEL MOTOR INVERTED": 1,
+                              "FILTER WHEEL POSITION REACHED FLAG": (1 << 2),
+                              "ANALYSER WHEEL POSITION REACHED FLAG": (1 << 3),
+                              "FILTER WHEEL ERROR FLAG": (1 << 4),
+                              "ANALYSER WHEEL ERROR FLAG": (1 << 5)
+                              }
+        #####################################################################
         self._vwrite10 = ads_var_single(self.conn, '.wDWORD_WRITE[10]', 'i')
+        self._vwrite10_keys = {"WAVE - PLATE ENABLED FLAG": (1 << 0),
+                               "WAVE - PLATE ERROR FLAG": (1 << 1),
+                               "WAVE - PLATE POSITION REACHED FLAG": (1 << 2),
+                               "WAVE - PLATE HOMED FLAG": (1 << 3),
+                               "WAVE-PLATE ENCODER DISCONECTED OR INVERTED": (1 << 4),
+                               "WAVE-PLATE MOTOR DISCONECTED": (1 << 5),
+                               }
+
+        # ERROR NUMBER OF THE FUNCTION BLOCK M3 SERVOMOTOR (WAVE-PLATE)
+        self._vwrite12 = ads_var_single(self.conn, '.wDWORD_WRITE[12]', 'i')
+
+        # ERROR NUMBER FOR THE AXIS M3 SERVOMOTOR (WAVE-PLATE)
+        self._vwrite13 = ads_var_single(self.conn, '.wDWORD_WRITE[13]', 'i')
+        #####################################################################
         self._vwrite20 = ads_var_single(self.conn, '.wDWORD_WRITE[20]', 'i')
+        self._vwrite20_keys = {"POLARIZER STEP MOTOR ENABLED FLAG": (1 << 0),
+                               "POLARIZER STEP MOTOR ERROR FLAG": (1 << 1),
+                               "POLARIZER POSITION REACHED FLAG": (1 << 2),
+                               "POLARIZER HOMED FLAG": (1 << 3),
+                               "POLARIZER ENCODER DISCONECTED OR INVERTED": (1 << 4),
+                               "POLARIZER MOTOR DISCONECTED": (1 << 5)
+                               }
+        # ERROR NUMBER OF THE FUNCTION BLOCK M4 SERVOMOTOR (POLARIZER)
+        self._vwrite21 = ads_var_single(self.conn, '.wDWORD_WRITE[21]', 'i')
+
+        # ERROR NUMBER FOR THE AXIS M4 SERVOMOTOR (POLARIZER)
+        self._vwrite22 = ads_var_single(self.conn, '.wDWORD_WRITE[22]', 'i')
+        #####################################################################
 
         self._rlREAL_READ0 = ads_var_single(self.conn, '.rlREAL_READ[0]', 'd')  # FILTER WHEEL COORDINATE
         self._rlREAL_READ1 = ads_var_single(self.conn, '.rlREAL_READ[1]', 'd')  # ANALYSER WHEEL COORDINATE

@@ -12,12 +12,12 @@ class FSUFilterWheel(FSUConn, FSUFWheels):
     Solunia class to interface with the filter wheels component.
     """
 
-    def __init__(self,fsu):
+    def __init__(self, fsu):
         log.debug('Connecting to TwinCat server @ %s:%s'%(fsu['plc_ip_adr'],
                                                           fsu['plc_ip_port']))
         self.log = fsu.log
         self.timeout = fsu['plc_timeout']
-        FSUConn.__init__(self,fsu)
+        FSUConn.__init__(self, fsu)
         FSUFWheels.__init__(self)
         """
         Initialize object from Chimera.
