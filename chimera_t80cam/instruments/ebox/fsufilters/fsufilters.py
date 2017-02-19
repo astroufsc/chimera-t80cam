@@ -5,7 +5,7 @@ import logging
 from chimera.core.event import event
 from chimera.core.lock import lock
 
-from chimera_t80cam.instruments.ebox.fsuexceptions import FilterPositionFailure
+from chimera_t80cam.instruments.ebox.fsuexceptions import FilterPositionFailure, FSUException
 from chimera.instruments.filterwheel import FilterWheelBase
 
 from chimera_t80cam.instruments.ebox.fsufilters.filterwheelsdrv import FSUFilterWheel
@@ -21,6 +21,7 @@ class FsuFilters(FilterWheelBase):
     __config__ = dict(
         filter_wheel_model="Solunia",
         waitMoveStart=0.5,
+        move_filter_timeout=25,
         plc_ams_id="5.18.26.30.1.1",
         plc_ams_port=801,
         plc_ip_adr="192.168.100.1",
@@ -44,6 +45,15 @@ class FsuFilters(FilterWheelBase):
 
     def __stop__(self):
         self.stopWheel()
+
+    def control(self):
+        try:
+            msg = ""
+            check = self.fwhl.check_hw()
+            for item in check:
+                self.log.error('%s error flag is set' % item['flag'])
+        except:
+            pass
 
     @lock
     def open(self):
@@ -91,8 +101,7 @@ class FsuFilters(FilterWheelBase):
             if self._abort.isSet():
                 self.stopWheel()
                 break
-            if time.time()-start_time > 25:
-                self.log.warning("Longer than 25s have passed; something is wrong...")
+            if time.time()-start_time > self["move_filter_timeout"]:
                 # Todo: Check wheel for errors
                 fwhl.check_hw()
                 raise FilterPositionFailure('Positioning filter timed-out! Check Filter Wheel!')

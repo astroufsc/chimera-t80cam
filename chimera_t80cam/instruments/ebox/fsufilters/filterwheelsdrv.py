@@ -13,15 +13,18 @@ class FSUFilterWheel(FSUConn, FSUFWheels):
     """
 
     def __init__(self, fsu):
+        """
+        Initialize object from Chimera.
+
+        :param fsu:
+        :return:
+        """
         log.debug('Connecting to TwinCat server @ %s:%s'%(fsu['plc_ip_adr'],
                                                           fsu['plc_ip_port']))
         self.log = fsu.log
         self.timeout = fsu['plc_timeout']
         FSUConn.__init__(self, fsu)
         FSUFWheels.__init__(self)
-        """
-        Initialize object from Chimera.
-        """
 
     def move_pos(self, filterpos):
         self.log.debug('Requested filter position {0}'.format(filterpos))
@@ -145,36 +148,5 @@ class FSUFilterWheel(FSUConn, FSUFWheels):
 
 
     def check_hw(self):
-        vec_msgs0 = ('Filter wheel: position timeout',
-                     'Analyser wheel: position timeout',
-                     'Shutter: error',
-                     'Shutter: opened',
-                     'Filter wheel encoder: disconnected or inverted',
-                     'Analyser wheel encoder: disconnected or inverted',
-                     'Filter wheel: motor disconnected',
-                     'Analyser wheel: motor disconnected'
-                     )
-        vec_msgs1 = ('Filter wheel: motor inverted',
-                     'Analyser wheel: motor inverted',
-                     'Filter wheel: position reached',
-                     'Analyser wheel: position reached',
-                     'Filter wheel: error flag',
-                     'Analyser wheel: error flag',
-                     '',
-                     ''
-                     )
-        for statbit in range(0, 8):
-            if (self._vwrite0.read() & (1 << statbit)) == 1:
-                print vec_msgs0[statbit]
-        for statbit in range(0, 8):
-            if (self._vwrite1.read() & (1 << statbit)) == 1:
-                print vec_msgs1[statbit]
-        # for statbit in range(0, 8):
-        #     if (self._vwrite10.read() & (1 << statbit)) == 1:
-        #         print vec_msgs10[statbit]
-        # Now take care of the full reg values : 12, 13
-        # for idx in [12, 13]:
-        # print('Function blk M3 servo (wplate) error number: {0}'.format(
-        #     self._vwrite12.read()))
-        # print('Function blk M3 servo axis (wplate)error number: {0}'.format(
-        #     self._vwrite13.read()))
+        log.debug('Checking filter wheel!')
+        return True

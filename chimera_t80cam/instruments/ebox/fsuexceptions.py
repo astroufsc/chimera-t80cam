@@ -6,3 +6,6 @@ class FilterPositionFailure(ChimeraException):
 
 class FSUInitializationException(ChimeraException):
     pass
+
+class FSUException(ChimeraException):
+    pass
