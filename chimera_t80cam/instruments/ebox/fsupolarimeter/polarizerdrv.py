@@ -188,15 +188,21 @@ class FSUPolDriver(FSUConn, FSUFWheels):
 
     def position_reached(self, wheel):
         if wheel == 0:
-            return (self._vwrite1.read() & (1 << 2)) == 0
+            return (self._vwrite1.read() & (1 << 2)) != 0
         elif wheel == 1:
-            return (self._vwrite1.read() & (1 << 3)) == 0
+            return (self._vwrite1.read() & (1 << 3)) != 0
         elif wheel == 2:
-            return (self._vwrite10.read() & (1 << 2)) == 0
+            return (self._vwrite10.read() & (1 << 2)) != 0
         elif wheel == 3:
-            return (self._vwrite20.read() & (1 << 2)) == 0
+            return (self._vwrite20.read() & (1 << 2)) != 0
 
+    def disable_wheel(self, wheel):
+        vread1, vread2, start_movement_bit, \
+        stop_movement_bit, enable_bit, get_required_pos = self.setup_wheel(wheel)
 
+        # check if enable bit is set, if not, make sure wheel is disable
+        if enable_bit is not None and (vread1.read() & enable_bit) != 0:
+            vread1.write(vread1.read() ^ enable_bit)
 
     def wp_position_reached(self):
         return (self._vwrite10.read() & (1 << 2)) == 0

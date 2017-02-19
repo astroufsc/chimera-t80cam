@@ -80,8 +80,8 @@ class FsuPolarimeter(FilterWheelBase):
                 if complete_mask[wheel_num]:
                     self.log.debug('Wheel %i in position' % wheel_num)
                     continue
-                self.log.debug('Checking wheel %i' % wheel_num)
-                complete_mask[wheel_num] = self.fwhl.position_reached([int(self._wheels[wheel_num]['id'])])
+                self.log.debug('Checking wheel %i' % (wheel_num))
+                complete_mask[wheel_num] = self.fwhl.position_reached(int(self._wheels[wheel_num]['id']))
 
             if self._abort.isSet():
                 self.log.warning('Aborting!')
@@ -92,6 +92,10 @@ class FsuPolarimeter(FilterWheelBase):
                 # fwhl.check_hw()
                 raise FilterPositionFailure('Positioning filter timed-out (%s)! Check Filter Wheel!' % complete_mask)
             time.sleep(0.1)
+
+        # Disable wave plate and analyser wheel
+        for wheel_num, wheel in enumerate(self._wheels):
+            self.fwhl.disable_wheel(int(self._wheels[wheel_num]['id']))
 
         return True
 
