@@ -75,7 +75,7 @@ class FsuPolarimeter(FilterWheelBase):
         start_time = time.time()
         complete_mask = np.zeros_like(self._wheels) == 1
 
-        while not np.any(complete_mask):
+        while not np.all(complete_mask):
             for wheel_num, wheel in enumerate(self._wheels):
                 if complete_mask[wheel_num]:
                     self.log.debug('Wheel %i in position' % wheel_num)
