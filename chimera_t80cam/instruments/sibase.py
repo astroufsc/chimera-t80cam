@@ -207,6 +207,9 @@ class SIBase(CameraBase):
             pass
 
     def control(self):
+        return self._si_control()
+
+    def _si_control(self):
 
         for i in range(len(self._threadList)-1,-1,-1):
             if not self._threadList[i].isAlive():

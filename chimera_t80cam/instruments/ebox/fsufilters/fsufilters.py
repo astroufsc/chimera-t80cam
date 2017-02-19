@@ -48,6 +48,10 @@ class FsuFilters(FilterWheelBase):
         self.stopWheel()
 
     def control(self):
+        return self._fsu_control()
+
+    def _fsu_control(self):
+
         self.log.debug("[control] Checking filter wheel.")
         try:
             msg = ""
