@@ -11,24 +11,36 @@ class T80Cam(SIBase,FsuFilters):
     def __init__(self):
 
         SIBase.__init__(self)
+        self.si_control = SIBase.control
+
         FsuFilters.__init__(self)
+        self.fsu_control = FsuFilters.control
 
     def __start__(self):
-        super(FsuFilters, self).__start__()
+        # super(FsuFilters, self).__start__()
         #super(SIBase, self).__start__()
         #super(SIBase, self).setHz(0.1)
+
+        # start SIBase
         self.connectSIClient()
         self.log.info("retrieving information from camera...")
         self.get_status()
         self.get_config()
         self.get_camera_settings()
+
+        # start FSU
         self.connectTWC()
         self.set_home_position()
+
+        # set frequency
         self.setHz(0.1)
 
     def control(self):
-        super(FsuFilters, self).control()
-        super(SIBase, self).control()
+        self.log.debug('[control] Calling SI control')
+        self.si_control()
+
+        self.log.debug('[control] Calling FSU control')
+        self.fsu_control()
 
         return True
 
