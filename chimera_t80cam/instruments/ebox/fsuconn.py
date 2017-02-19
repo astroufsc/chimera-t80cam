@@ -28,6 +28,9 @@ class FSUConn():
     def __del__(self):
         self.conn.close()
 
+    def disconnect_plc(self):
+        self.conn.close()
+
     def connect_plc(self):
         self.conn = ads_connection(self._plc_ams_id,
                                    self._plc_ams_port,

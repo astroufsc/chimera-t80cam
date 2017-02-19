@@ -23,6 +23,7 @@ class T80Cam(SIBase,FsuFilters):
         self.get_config()
         self.get_camera_settings()
         self.connectTWC()
+        self.set_home_position()
         
     @lock
     def open(self):
@@ -30,6 +31,7 @@ class T80Cam(SIBase,FsuFilters):
         # super(FsuFilters,self).open()
         self.connectSIClient()
         self.connectTWC()
+
         return True
         # if super(SIBase,self).open() and super(FsuFilters,self).open():
         #     return True
