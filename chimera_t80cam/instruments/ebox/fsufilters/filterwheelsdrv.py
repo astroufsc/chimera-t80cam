@@ -148,5 +148,5 @@ class FSUFilterWheel(FSUConn, FSUFWheels):
 
 
     def check_hw(self):
-        log.debug('Checking filter wheel!')
+        # log.debug('Checking filter wheel!')
         return []

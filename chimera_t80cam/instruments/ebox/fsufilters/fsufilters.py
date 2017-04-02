@@ -52,7 +52,7 @@ class FsuFilters(FilterWheelBase):
 
     def _fsu_control(self):
 
-        self.log.debug("[control] Checking filter wheel.")
+        # self.log.debug("[control] Checking filter wheel.")
         try:
             msg = ""
             check = self.fwhl.check_hw()
