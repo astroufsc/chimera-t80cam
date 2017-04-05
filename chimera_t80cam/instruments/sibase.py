@@ -3,6 +3,7 @@ import os
 import re
 import logging
 import threading
+import gc
 import Queue
 
 import numpy as N
@@ -240,6 +241,10 @@ class SIBase(CameraBase):
                     break
 
         if self._finalFilesProxyQueue.qsize() > self["max_files"]:
+            self.log.debug('Performing garbage collection...')
+            n_unreachable = gc.collect()
+            self.log.debug('Number of unreachable objects: %i' % n_unreachable)
+
             for i in range(self["max_files"]):
                 if self._cleanQueueLock.acquire(False):
                     try:
