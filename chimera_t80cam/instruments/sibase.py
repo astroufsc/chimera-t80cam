@@ -840,12 +840,13 @@ class SIBase(CameraBase):
             self._tmpFilesProxyQueue.put([proxy,proxy.filename()])
             # proxy = self._finishHeader(imageRequest,self.__lastFrameStart,filename,path,extraHeaders)
             if self["fast_mode"]:
-                p = threading.Thread(target=self._finishHeader, args=(imageRequest, self.__lastFrameStart, filename, path, extraHeaders))
+                p = threading.Thread(target=self._finishHeader, args=(imageRequest, self.__lastFrameStart, filename,
+                                                                      path, extraHeaders))
                 self._threadList.append(p)
                 p.start()
                 # self._tmpFilesProxyQueue.put(proxy)
             else:
-                proxy = self._finishHeader(imageRequest,self.__lastFrameStart,filename,path,extraHeaders)
+                proxy = self._finishHeader(imageRequest, self.__lastFrameStart, filename, path, extraHeaders)
 
         self.readoutComplete(proxy, CameraStatus.OK)
         return proxy
@@ -1071,6 +1072,7 @@ class SIBase(CameraBase):
             hdulist.writeto(fname, checksum=True)
             self._WriteCompressedFile.release()
             hdu.close()
+            hdulist.close()
             return None
         else:
             self.log.debug('Writing %s ...' % fname)
