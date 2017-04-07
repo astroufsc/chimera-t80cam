@@ -222,45 +222,45 @@ class SIBase(CameraBase):
         # self.log.debug("[control] Proxy queue sizes: %i %i" % (self._tmpFilesProxyQueue.qsize(),
         #                                                        self._finalFilesProxyQueue.qsize()))
 
-
-        if self._tmpFilesProxyQueue.qsize() > self["max_files"]:
-            for i in range(self["max_files"]):
-                if self._cleanQueueLock.acquire(False):
-                    try:
-                        proxy = self._tmpFilesProxyQueue.get()
-                        self.log.debug("[control] Closing and removing temporary file %s ..." % proxy[0].filename())
-                        # self.log.debug("[control] Closing temporary file %s ..." % proxy[1])
-                        proxy[0].close()
-                        os.remove(proxy[1])
-                    except Exception, e:
-                        self.log.exception(e)
-                    finally:
-                        self._cleanQueueLock.release()
-                else:
-                    self.log.warning("Could not acquire lock, probably during a readout procedure. Stopping.")
-                    break
-
-        if self._finalFilesProxyQueue.qsize() > self["max_files"]:
-            self.log.debug('Performing garbage collection...')
-            n_unreachable = gc.collect()
-            self.log.debug('Number of unreachable objects: %i' % n_unreachable)
-
-            for i in range(self["max_files"]):
-                if self._cleanQueueLock.acquire(False):
-                    try:
-                        proxy = self._finalFilesProxyQueue.get()
-                        self.log.debug("[control] Closing final file %s ..." % proxy[0].filename())
-                        # self.log.debug("[control] Closing final file %s ..." % proxy[1])
-                        proxy[0].close()
-                    except Exception, e:
-                        self.log.exception(e)
-                    finally:
-                        self._cleanQueueLock.release()
-                else:
-                    self.log.warning("Could not acquire lock, probably during a readout procedure. Stopping.")
-                    break
-
         return True
+        # if self._tmpFilesProxyQueue.qsize() > self["max_files"]:
+        #     for i in range(self["max_files"]):
+        #         if self._cleanQueueLock.acquire(False):
+        #             try:
+        #                 proxy = self._tmpFilesProxyQueue.get()
+        #                 self.log.debug("[control] Closing and removing temporary file %s ..." % proxy[0].filename())
+        #                 # self.log.debug("[control] Closing temporary file %s ..." % proxy[1])
+        #                 proxy[0].close()
+        #                 os.remove(proxy[1])
+        #             except Exception, e:
+        #                 self.log.exception(e)
+        #             finally:
+        #                 self._cleanQueueLock.release()
+        #         else:
+        #             self.log.warning("Could not acquire lock, probably during a readout procedure. Stopping.")
+        #             break
+        #
+        # if self._finalFilesProxyQueue.qsize() > self["max_files"]:
+        #     self.log.debug('Performing garbage collection...')
+        #     n_unreachable = gc.collect()
+        #     self.log.debug('Number of unreachable objects: %i' % n_unreachable)
+        #
+        #     for i in range(self["max_files"]):
+        #         if self._cleanQueueLock.acquire(False):
+        #             try:
+        #                 proxy = self._finalFilesProxyQueue.get()
+        #                 self.log.debug("[control] Closing final file %s ..." % proxy[0].filename())
+        #                 # self.log.debug("[control] Closing final file %s ..." % proxy[1])
+        #                 proxy[0].close()
+        #             except Exception, e:
+        #                 self.log.exception(e)
+        #             finally:
+        #                 self._cleanQueueLock.release()
+        #         else:
+        #             self.log.warning("Could not acquire lock, probably during a readout procedure. Stopping.")
+        #             break
+        #
+        # return True
 
     @lock
     def open(self):
@@ -839,7 +839,7 @@ class SIBase(CameraBase):
             img = Image.fromFile(os.path.join(self['local_path'], filename))
 
             proxy = server.register(img)
-            self._tmpFilesProxyQueue.put([proxy,proxy.filename()])
+            # self._tmpFilesProxyQueue.put([proxy,proxy.filename()])
             # proxy = self._finishHeader(imageRequest,self.__lastFrameStart,filename,path,extraHeaders)
             if self["fast_mode"]:
                 p = threading.Thread(target=self._finishHeader, args=(imageRequest, self.__lastFrameStart, filename,
