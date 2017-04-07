@@ -819,6 +819,8 @@ class SIBase(CameraBase):
                 self.log.debug('Writting file to local disk: %s' % filename)
                 hdu.writeto(os.path.join(self['local_path'], filename))
                 hdu.close()
+                del hdu
+                gc.collect()
                 return extraHeaders
 
             try:
@@ -1073,6 +1075,9 @@ class SIBase(CameraBase):
             self._WriteCompressedFile.release()
             hdu.close()
             hdulist.close()
+            del hdu
+            del hdulist
+            gc.collect()
             return None
         else:
             self.log.debug('Writing %s ...' % fname)
