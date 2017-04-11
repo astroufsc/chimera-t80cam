@@ -222,23 +222,14 @@ class SIBase(CameraBase):
         # self.log.debug("[control] Proxy queue sizes: %i %i" % (self._tmpFilesProxyQueue.qsize(),
         #                                                        self._finalFilesProxyQueue.qsize()))
 
-        return True
-        # if self._tmpFilesProxyQueue.qsize() > self["max_files"]:
-        #     for i in range(self["max_files"]):
-        #         if self._cleanQueueLock.acquire(False):
-        #             try:
-        #                 proxy = self._tmpFilesProxyQueue.get()
-        #                 self.log.debug("[control] Closing and removing temporary file %s ..." % proxy[0].filename())
-        #                 # self.log.debug("[control] Closing temporary file %s ..." % proxy[1])
-        #                 proxy[0].close()
-        #                 os.remove(proxy[1])
-        #             except Exception, e:
-        #                 self.log.exception(e)
-        #             finally:
-        #                 self._cleanQueueLock.release()
-        #         else:
-        #             self.log.warning("Could not acquire lock, probably during a readout procedure. Stopping.")
-        #             break
+        # return True
+        if self._tmpFilesProxyQueue.qsize() > self["max_files"]:
+            for i in range(self["max_files"]):
+                try:
+                    filename = self._tmpFilesProxyQueue.get()
+                    os.remove(filename)
+                except Exception, e:
+                    self.log.exception(e)
         #
         # if self._finalFilesProxyQueue.qsize() > self["max_files"]:
         #     self.log.debug('Performing garbage collection...')
@@ -260,7 +251,7 @@ class SIBase(CameraBase):
         #             self.log.warning("Could not acquire lock, probably during a readout procedure. Stopping.")
         #             break
         #
-        # return True
+        return True
 
     @lock
     def open(self):
@@ -287,6 +278,13 @@ class SIBase(CameraBase):
 
     @lock
     def close(self):
+        while not self._tmpFilesProxyQueue.empty():
+            try:
+                filename = self._tmpFilesProxyQueue.get()
+                os.remove(filename)
+            except Exception, e:
+                self.log.exception(e)
+
         self.client.disconnect()
 
     def getClient(self):
@@ -839,7 +837,7 @@ class SIBase(CameraBase):
             img = Image.fromFile(os.path.join(self['local_path'], filename))
 
             proxy = server.register(img)
-            # self._tmpFilesProxyQueue.put([proxy,proxy.filename()])
+            self._tmpFilesProxyQueue.put(proxy.filename())
             # proxy = self._finishHeader(imageRequest,self.__lastFrameStart,filename,path,extraHeaders)
             if self["fast_mode"]:
                 p = threading.Thread(target=self._finishHeader, args=(imageRequest, self.__lastFrameStart, filename,
