@@ -54,14 +54,23 @@ class SIBase(CameraBase):
     Date: April/2015
     """
 
-    __config__ = {'device': 'ethernet', 'ccd': CCD.IMAGING, 'temp_delta': 2.0,
+    __config__ = {'device': 'ethernet',
+                  'ccd': CCD.IMAGING,
+                  'temp_delta': 2.0,
                   'camera_model': 'Spectral Instruments 1110 SN 105',
                   'ccd_model': 'e2V CCD 290-99',
-                  'camera_host': '127.0.0.1', 'camera_port': 2055,
+                  'camera_host': '127.0.0.1',
+                  'camera_port': 2055,
                   'localhost': False,
                   "local_filename" : 'tmp.fits',
                   "local_path" : '/tmp/',
                   "fast_mode" : True, # May return image with unfinished header
+
+                  # WCS information
+                  "parity_y" : 1., # Up is North
+                  "parity_x" : 1., # Left is East
+                  "max_files": 10,
+
                   "bad_cards" : "NAXIS3,DATE-OBS,PG0_1,PG1_1,PG1_2,PG0_10,PG0_15,PG0_54,PG0_55,PG0_56",
                   "ccdtemp" : 'PG0_56',
                   "instrumentTemperature" : 'PG0_55',
@@ -69,12 +78,9 @@ class SIBase(CameraBase):
                   "exptime" : 'PG2_0',
                   "ccdsize_x" : 'PG1_7',
                   "ccdsize_y" : 'PG1_8',
-                  # WCS information
-                  "parity_y" : 1., # Up is North
-                  "parity_x" : 1., # Left is East
-                  "max_files": 10,
 
                   # ITEMS to be measured on the camera
+
                   "OUT1_SATUR": "100000.0",  # Output 1 saturation level (e-)
                   "OUT2_SATUR": "100000.0",  # Output 2 saturation level (e-)
                   "OUT3_SATUR": "100000.0",  # Output 3 saturation level (e-)
@@ -1059,22 +1065,14 @@ class SIBase(CameraBase):
                                               '.fits'))
 
         if imageRequest['compress_format'] == 'fits_rice':
-            hdulist = pyfits.HDUList()
-            primary_hdu = pyfits.PrimaryHDU(header=hdu[0].header)
-            hdulist.append(primary_hdu)
-
             self.log.debug('FITS_RICE compression requested...')
             fname = fname + ".fz"
-            img = pyfits.CompImageHDU(data=hdu[0].data, compression_type='RICE_1')
-            hdulist.append(img)
+            img = pyfits.CompImageHDU(data=hdu[0].data, header=hdu[0].header, compression_type='RICE_1')
             self.log.debug('Writing %s ...' % fname)
             self._WriteCompressedFile.acquire()
-            hdulist.writeto(fname, checksum=True)
+            img.writeto(fname, checksum=True)
             self._WriteCompressedFile.release()
-            hdu.close()
-            hdulist.close()
             del hdu
-            del hdulist
             gc.collect()
             return None
         else:
