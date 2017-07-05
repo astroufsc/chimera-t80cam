@@ -232,10 +232,14 @@ class SIBase(CameraBase):
         if self._tmpFilesProxyQueue.qsize() > self["max_files"]:
             for i in range(self["max_files"]):
                 try:
-                    proxy = self._tmpFilesProxyQueue.get()
-                    filename = proxy.filename()
-                    server = getImageServer(self.getManager())
-                    server.unregister(proxy)
+                    filename = self._tmpFilesProxyQueue.get()
+                    try:
+
+                        server = getImageServer(self.getManager())
+                        proxy = server.getImageByPath(filename)
+                        server.unregister(proxy)
+                    except Exception, e:
+                        self.log.warning('Error trying to unregister image %s from image server.' % filename)
                     os.remove(filename)
                 except Exception, e:
                     self.log.exception(e)
@@ -846,7 +850,7 @@ class SIBase(CameraBase):
             img = Image.fromFile(os.path.join(self['local_path'], filename))
 
             proxy = server.register(img)
-            self._tmpFilesProxyQueue.put(proxy)
+            self._tmpFilesProxyQueue.put(proxy.filename())
             # proxy = self._finishHeader(imageRequest,self.__lastFrameStart,filename,path,extraHeaders)
             if self["fast_mode"]:
                 p = threading.Thread(target=self._finishHeader, args=(imageRequest, self.__lastFrameStart, filename,
