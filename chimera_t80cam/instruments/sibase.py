@@ -233,6 +233,9 @@ class SIBase(CameraBase):
             for i in range(self["max_files"]):
                 try:
                     filename = self._tmpFilesProxyQueue.get()
+                    server = getImageServer(self.getManager())
+                    proxy = server.getImageByPath(filename)
+                    server.unregister(proxy)
                     os.remove(filename)
                 except Exception, e:
                     self.log.exception(e)
