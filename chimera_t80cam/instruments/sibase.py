@@ -1074,7 +1074,8 @@ class SIBase(CameraBase):
         if imageRequest['compress_format'] == 'fits_rice':
             self.log.debug('FITS_RICE compression requested...')
             fname = fname + ".fz"
-            phdu = pyfits.PrimaryHDU(header=hdu[0].header)
+            phdu = pyfits.PrimaryHDU()
+            phdu['BITPIX'] = hdu[0].header['BITPIX']
             dhdu = pyfits.CompImageHDU(data=hdu[0].data, header=hdu[0].header, compression_type='RICE_1')
             hdulist = pyfits.HDUList([phdu, dhdu])
             self.log.debug('Writing %s ...' % fname)
