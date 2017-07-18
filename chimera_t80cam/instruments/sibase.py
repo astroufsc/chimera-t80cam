@@ -1076,7 +1076,8 @@ class SIBase(CameraBase):
             fname = fname + ".fz"
             phdu = pyfits.PrimaryHDU(data=hdu[0].data)
             dhdu = pyfits.CompImageHDU(data=hdu[0].data, header=hdu[0].header, compression_type='RICE_1')
-            phdu.data = None
+            phdu.data = []
+            phdu['NAXIS'] = 0
             hdulist = pyfits.HDUList([phdu, dhdu])
             self.log.debug('Writing %s ...' % fname)
             self._WriteCompressedFile.acquire()
