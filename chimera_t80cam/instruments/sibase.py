@@ -38,6 +38,7 @@ import time
 
 ImgType = Enum("U16", "I16", "U32", "I32", "SGL", "DBL")
 
+__sibase_version__ = '0.0.1'
 
 class SIException(ChimeraException):
     pass
@@ -1073,9 +1074,15 @@ class SIBase(CameraBase):
 
         if imageRequest['compress_format'] == 'fits_rice':
             self.log.debug('FITS_RICE compression requested...')
-            fname = fname + ".fz"
+            filename = filename.replace('.fits', '.fz')
+            fname = os.path.join(path,
+                                 filename)
+
+            # fname = fname + ".fz"
             phdu = pyfits.PrimaryHDU(data=hdu[0].data)
             dhdu = pyfits.CompImageHDU(data=hdu[0].data, header=hdu[0].header, compression_type='RICE_1')
+            dhdu.header['FILENAME'] = filename
+            dhdu.header['SIBASEV'] = __sibase_version__
             phdu.data = []
             phdu.header['NAXIS'] = 0
             hdulist = pyfits.HDUList([phdu, dhdu])
