@@ -1068,13 +1068,13 @@ class SIBase(CameraBase):
         #     hdu.close()
         #     return None
         # else:
+        filename, ext = os.path.splitext(filename)
         fname = os.path.join(path,
-                             filename.replace('.FIT',
-                                              '.fits'))
+                             filename+'.fits')
 
         if imageRequest['compress_format'] == 'fits_rice':
             self.log.debug('FITS_RICE compression requested...')
-            filename = filename.replace('.fits', '.fz')
+            filename = filename + '.fz'
             fname = os.path.join(path,
                                  filename)
 
