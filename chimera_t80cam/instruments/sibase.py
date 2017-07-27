@@ -1074,7 +1074,7 @@ class SIBase(CameraBase):
 
         if imageRequest['compress_format'] == 'fits_rice':
             self.log.debug('FITS_RICE compression requested...')
-            filename = filename + '.fz'
+            filename += '.fits.fz'
             fname = os.path.join(path,
                                  filename)
 
