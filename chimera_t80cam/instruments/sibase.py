@@ -241,7 +241,13 @@ class SIBase(CameraBase):
                         server.unregister(proxy)
                     except Exception, e:
                         self.log.warning('Error trying to unregister image %s from image server.' % filename)
-                    os.remove(filename)
+                        return True
+                    finally:
+                        try:
+                            os.remove(filename)
+                        except Exception, e:
+                            self.log.exception(e)
+                            return True
                 except Exception, e:
                     self.log.exception(e)
         #
