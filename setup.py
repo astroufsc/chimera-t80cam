@@ -7,7 +7,7 @@ setup(
               'chimera_t80cam.instruments.ebox',
               'chimera_t80cam.instruments.ebox.fsufilters',
               'chimera_t80cam.instruments.ebox.fsupolarimeter'],
-    requires=['chimera','adshli'],
+    requires=['chimera','git+https://github.com/astroufsc/python-si-tcpclient.git','adshli'],
     scripts=[],
     url='http://github.com/astroufsc/chimera_t80cam',
     license='GPL v2',
